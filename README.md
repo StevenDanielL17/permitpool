@@ -94,6 +94,4 @@ Stage 2 will implement:
 - ENS node computation helpers
 - Integration of verification into beforeSwap()
 
-## License
 
-MIT
