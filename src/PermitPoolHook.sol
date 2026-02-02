@@ -1,57 +1,58 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {BaseHook} from "v4-periphery/src/base/hooks/BaseHook.sol";
+import {BaseHook} from "v4-periphery/src/utils/BaseHook.sol";
 import {Hooks} from "v4-core/src/libraries/Hooks.sol";
 import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {PoolKey} from "v4-core/src/types/PoolKey.sol";
-import {PoolId, PoolIdLibrary} from "v4-core/src/types/PoolId.sol";
-import {BalanceDelta} from "v4-core/src/types/BalanceDelta.sol";
 import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "v4-core/src/types/BeforeSwapDelta.sol";
+
+/*//////////////////////////////////////////////////////////////
+                            INTERFACES
+//////////////////////////////////////////////////////////////*/
+
+/// @notice Interface for ENS Name Wrapper contract
+/// @dev Used to verify ENS subdomain ownership and fuse status
+interface INameWrapper {
+    /// @notice Get the owner of an ENS name
+    /// @param id The namehash of the ENS name
+    /// @return The address of the owner
+    function ownerOf(uint256 id) external view returns (address);
+
+    /// @notice Get the fuse data for an ENS name
+    /// @param id The namehash of the ENS name
+    /// @return owner The owner address
+    /// @return fuses The fuses burned for this name
+    /// @return expiry The expiry timestamp
+    function getData(uint256 id)
+        external
+        view
+        returns (address owner, uint32 fuses, uint64 expiry);
+
+    /// @notice Get the ENS name for an address (reverse lookup)
+    /// @param addr The address to lookup
+    /// @return The ENS name as bytes
+    function names(address addr) external view returns (bytes memory);
+}
+
+/*//////////////////////////////////////////////////////////////
+                            CONTRACT
+//////////////////////////////////////////////////////////////*/
 
 /// @title PermitPoolHook
 /// @notice A Uniswap v4 Hook that enforces trading permissions based on ENS licenses
 /// @dev Implements beforeSwap to verify ENS subdomain ownership, fuses, Arc DID credentials, and revocation status
 contract PermitPoolHook is BaseHook {
-    using PoolIdLibrary for PoolKey;
-
-    /*//////////////////////////////////////////////////////////////
-                                INTERFACES
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Interface for ENS Name Wrapper contract
-    /// @dev Used to verify ENS subdomain ownership and fuse status
-    interface INameWrapper {
-        /// @notice Get the owner of an ENS name
-        /// @param id The namehash of the ENS name
-        /// @return The address of the owner
-        function ownerOf(uint256 id) external view returns (address);
-
-        /// @notice Get the fuse data for an ENS name
-        /// @param id The namehash of the ENS name
-        /// @return owner The owner address
-        /// @return fuses The fuses burned for this name
-        /// @return expiry The expiry timestamp
-        function getData(uint256 id)
-            external
-            view
-            returns (address owner, uint32 fuses, uint64 expiry);
-
-        /// @notice Get the ENS name for an address (reverse lookup)
-        /// @param addr The address to lookup
-        /// @return The ENS name as bytes
-        function names(address addr) external view returns (bytes memory);
-    }
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice CANNOT_TRANSFER fuse flag - prevents transfers of the ENS name
-    uint32 public constant CANNOT_TRANSFER = 0x10;
+    uint32 public constant CANNOT_TRANSFER = 0x4; // 0x4 = Bit 2
 
     /// @notice PARENT_CANNOT_CONTROL fuse flag - prevents parent from controlling the subdomain
-    uint32 public constant PARENT_CANNOT_CONTROL = 0x40000;
+    uint32 public constant PARENT_CANNOT_CONTROL = 0x10000; // 0x10000 = Bit 16
 
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
@@ -177,14 +178,18 @@ contract PermitPoolHook is BaseHook {
         IPoolManager.SwapParams calldata params,
         bytes calldata hookData
     ) external override returns (bytes4, BeforeSwapDelta, uint24) {
-        // TODO: Stage 2 - Implement ENS subdomain ownership check
-        // TODO: Stage 2 - Implement fuse verification
+        // Verify ENS ownership and get node (includes parent verification)
+        bytes32 node = _verifyENSOwnership(sender);
+        
+        // Verify required fuses are burned
+        _verifyFuses(node, sender);
+        
         // TODO: Stage 3 - Implement Arc DID credential verification
         // TODO: Stage 3 - Implement license revocation check
-
-        // Placeholder - will be implemented in later stages
-        // For now, allow all swaps (will implement verification in stages 2 & 3)
-
+        
+        // Emit success event
+        emit LicenseChecked(sender, node, true);
+        
         return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
     }
 
@@ -193,15 +198,134 @@ contract PermitPoolHook is BaseHook {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Compute the ENS node for a given address
-    /// @dev Will be implemented in Stage 2
+    /// @dev Verifies that the resolved name is a subdomain of parentNode
     /// @param addr The address to get the ENS node for
     /// @return The ENS node (namehash)
     function getENSNodeForAddress(address addr) public view returns (bytes32) {
-        // TODO: Stage 2 - Implement ENS node computation
-        // This will involve:
-        // 1. Get the ENS name for the address (reverse lookup)
-        // 2. Compute the namehash
-        // 3. Verify it's a subdomain of parentNode
-        return bytes32(0);
+        // Get the ENS name for the address (reverse lookup)
+        bytes memory ensNameBytes = nameWrapper.names(addr);
+        
+        // Check if address has an ENS name
+        if (ensNameBytes.length == 0) {
+            revert NoENSSubdomain(addr);
+        }
+        
+        // Convert bytes to string for processing
+        string memory ensName = string(ensNameBytes);
+        
+        // Compute the namehash of the ENS name and verify parent relationship
+        (bytes32 node, bool isSubdomain) = _computeNamehashAndCheckParent(ensName, parentNode);
+        
+        // Verify the node is a subdomain of parentNode
+        if (!isSubdomain) {
+            revert NoENSSubdomain(addr);
+        }
+        
+        // Additional check: Ensure we didn't just get the root or empty name
+        if (node == bytes32(0)) {
+            revert NoENSSubdomain(addr);
+        }
+        
+        return node;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        INTERNAL VERIFICATION FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Verify that the sender owns an ENS subdomain
+    /// @dev Internal function called by beforeSwap
+    /// @param sender The address to verify ownership for
+    /// @return node The ENS node (namehash) of the owned subdomain
+    function _verifyENSOwnership(address sender) internal view returns (bytes32 node) {
+        // Get the ENS node for the sender
+        node = getENSNodeForAddress(sender);
+        
+        // Verify the sender owns the ENS name
+        address owner = nameWrapper.ownerOf(uint256(node));
+        if (owner != sender) {
+            revert NoENSSubdomain(sender);
+        }
+        
+        return node;
+    }
+
+    /// @notice Verify that the required fuses are burned for the ENS name
+    /// @dev Internal function called by beforeSwap
+    /// @param node The ENS node (namehash) to check
+    /// @param sender The address attempting the swap (for error reporting)
+    function _verifyFuses(bytes32 node, address sender) internal view {
+        // Get fuse data from Name Wrapper
+        (, uint32 fuses,) = nameWrapper.getData(uint256(node));
+        
+        // Check CANNOT_TRANSFER fuse (0x4)
+        bool hasCannotTransfer = (fuses & CANNOT_TRANSFER) != 0;
+        
+        // Check PARENT_CANNOT_CONTROL fuse (0x10000)
+        bool hasParentCannotControl = (fuses & PARENT_CANNOT_CONTROL) != 0;
+        
+        // Both fuses must be burned
+        if (!hasCannotTransfer || !hasParentCannotControl) {
+            revert InvalidFuses(sender, fuses);
+        }
+    }
+
+    /// @notice Compute the ENS namehash for a given name and check if it's a subdomain of parentNode
+    /// @dev Implements the ENS namehash algorithm
+    /// @param name The ENS name (e.g., "alice.permitpool.eth")
+    /// @param _parentNode The parent node to check against
+    /// @return node The namehash of the name
+    /// @return isSubdomain Whether the name is a subdomain of (or is) the parent node
+    function _computeNamehashAndCheckParent(string memory name, bytes32 _parentNode) internal pure returns (bytes32 node, bool isSubdomain) {
+        // Start with the root hash (zero)
+        bytes32 namehash = 0x0000000000000000000000000000000000000000000000000000000000000000;
+        
+        // If parentNode is root, everything is a subdomain
+        if (_parentNode == bytes32(0)) {
+            isSubdomain = true;
+        } else {
+            isSubdomain = (namehash == _parentNode);
+        }
+        
+        // Convert string to bytes for processing
+        bytes memory nameBytes = bytes(name);
+        
+        // If empty name, return root hash
+        if (nameBytes.length == 0) {
+            return (namehash, isSubdomain);
+        }
+        
+        // Split the name by dots and hash from right to left
+        // This is a simplified implementation
+        
+        uint256 end = nameBytes.length;
+        uint256 start = end;
+        
+        // Process labels from right to left (e.g., eth -> permitpool -> alice)
+        while (start > 0) {
+            // Find the next dot (or start of string)
+            start--;
+            if (start == 0 || nameBytes[start - 1] == bytes1('.')) {
+                // Extract label
+                bytes memory label = new bytes(end - start);
+                for (uint256 i = 0; i < label.length; i++) {
+                    label[i] = nameBytes[start + i];
+                }
+                
+                // Compute: namehash = keccak256(namehash + keccak256(label))
+                namehash = keccak256(abi.encodePacked(namehash, keccak256(label)));
+                
+                // Check if we encountered the parent node
+                if (namehash == _parentNode) {
+                    isSubdomain = true;
+                }
+                
+                // Move end pointer to before the dot
+                end = start > 0 ? start - 1 : 0;
+                start = end;
+            }
+        }
+        
+        return (namehash, isSubdomain);
     }
 }

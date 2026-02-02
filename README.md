@@ -22,14 +22,15 @@ PermitPoolHook is a Uniswap v4 custom hook that verifies traders have valid ENS-
 - ✅ Admin revocation mapping
 - ✅ Skeleton beforeSwap() implementation
 
-**Stage 2: ENS Verification Logic** 🚧 **NEXT**
+**Stage 2: ENS Verification Logic** ✅ **COMPLETE**
 
-- [ ] ENS subdomain ownership verification
-- [ ] Fuse verification logic
-- [ ] Helper functions for ENS operations
-- [ ] Comprehensive error handling
+- ✅ ENS subdomain ownership verification
+- ✅ Fuse verification logic (CANNOT_TRANSFER & PARENT_CANNOT_CONTROL)
+- ✅ Helper functions for ENS operations
+- ✅ Comprehensive error handling
+- ✅ Namehash computation algorithm
 
-**Stage 3: License Verification & Finalization** ⏳ **PENDING**
+**Stage 3: License Verification & Finalization** 🚧 **NEXT**
 
 - [ ] Arc DID credential verification
 - [ ] Complete beforeSwap() implementation
