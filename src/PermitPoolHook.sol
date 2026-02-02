@@ -35,6 +35,16 @@ interface INameWrapper {
     function names(address addr) external view returns (bytes memory);
 }
 
+/// @notice Interface for ENS Text Resolver
+/// @dev Used to read text records from ENS names
+interface ITextResolver {
+    /// @notice Get a text record for an ENS node
+    /// @param node The namehash of the ENS name
+    /// @param key The text record key (e.g., "arc.credential")
+    /// @return The text record value
+    function text(bytes32 node, string calldata key) external view returns (string memory);
+}
+
 /*//////////////////////////////////////////////////////////////
                             CONTRACT
 //////////////////////////////////////////////////////////////*/
@@ -54,12 +64,18 @@ contract PermitPoolHook is BaseHook {
     /// @notice PARENT_CANNOT_CONTROL fuse flag - prevents parent from controlling the subdomain
     uint32 public constant PARENT_CANNOT_CONTROL = 0x10000; // 0x10000 = Bit 16
 
+    /// @notice Text record key for Arc DID credentials
+    string public constant ARC_CREDENTIAL_KEY = "arc.credential";
+
     /*//////////////////////////////////////////////////////////////
                             STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
 
     /// @notice ENS Name Wrapper contract on Sepolia
     INameWrapper public immutable nameWrapper;
+
+    /// @notice ENS Public Resolver for text records
+    ITextResolver public immutable textResolver;
 
     /// @notice Parent ENS node under which subdomains must be registered
     bytes32 public immutable parentNode;
@@ -94,6 +110,9 @@ contract PermitPoolHook is BaseHook {
     /// @notice Thrown when unauthorized address attempts admin function
     error Unauthorized();
 
+    /// @notice Thrown when an invalid address (zero address) is provided
+    error InvalidAddress();
+
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -109,6 +128,15 @@ contract PermitPoolHook is BaseHook {
     /// @param node The ENS node that was revoked
     event LicenseRevokedEvent(address indexed sender, bytes32 indexed node);
 
+    /// @notice Emitted when a license is restored by admin
+    /// @param user The address whose license was restored
+    event LicenseRestored(address indexed user);
+
+    /// @notice Emitted when admin rights are transferred
+    /// @param oldAdmin The previous admin address
+    /// @param newAdmin The new admin address
+    event AdminUpdated(address indexed oldAdmin, address indexed newAdmin);
+
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -116,15 +144,23 @@ contract PermitPoolHook is BaseHook {
     /// @notice Initialize the PermitPoolHook
     /// @param _poolManager The Uniswap v4 PoolManager contract
     /// @param _nameWrapper The ENS Name Wrapper contract address (Sepolia: 0x0635513f179D50A207757E05759CbD106d7dFcE8)
+    /// @param _textResolver The ENS Public Resolver contract address (Sepolia: 0x8FADE66B79cC9f707aB26799354482EB93a5B7dD)
     /// @param _parentNode The parent ENS node for subdomains
     /// @param _admin The admin address that can revoke licenses
     constructor(
         IPoolManager _poolManager,
         address _nameWrapper,
+        address _textResolver,
         bytes32 _parentNode,
         address _admin
     ) BaseHook(_poolManager) {
+        // Validate addresses
+        if (_nameWrapper == address(0)) revert InvalidAddress();
+        if (_textResolver == address(0)) revert InvalidAddress();
+        if (_admin == address(0)) revert InvalidAddress();
+
         nameWrapper = INameWrapper(_nameWrapper);
+        textResolver = ITextResolver(_textResolver);
         parentNode = _parentNode;
         admin = _admin;
     }
@@ -174,9 +210,9 @@ contract PermitPoolHook is BaseHook {
     /// @return uint24 LP fee (always zero for this hook)
     function beforeSwap(
         address sender,
-        PoolKey calldata key,
-        IPoolManager.SwapParams calldata params,
-        bytes calldata hookData
+        PoolKey calldata /* key */,
+        IPoolManager.SwapParams calldata /* params */,
+        bytes calldata /* hookData */
     ) external override returns (bytes4, BeforeSwapDelta, uint24) {
         // Verify ENS ownership and get node (includes parent verification)
         bytes32 node = _verifyENSOwnership(sender);
@@ -184,8 +220,11 @@ contract PermitPoolHook is BaseHook {
         // Verify required fuses are burned
         _verifyFuses(node, sender);
         
-        // TODO: Stage 3 - Implement Arc DID credential verification
-        // TODO: Stage 3 - Implement license revocation check
+        // Verify Arc DID credential (Stage 3)
+        _verifyArcCredential(node, sender);
+        
+        // Check license revocation (Stage 3)
+        _checkRevocation(sender);
         
         // Emit success event
         emit LicenseChecked(sender, node, true);
@@ -269,6 +308,80 @@ contract PermitPoolHook is BaseHook {
             revert InvalidFuses(sender, fuses);
         }
     }
+
+    /// @notice Verify that the ENS name has a valid Arc DID credential
+    /// @dev Checks the text record for the Arc credential key
+    /// @param node The ENS node (namehash) to check
+    /// @param sender The address attempting the swap (for error reporting)  
+    function _verifyArcCredential(bytes32 node, address sender) internal view {
+        // Get Arc DID credential from text records
+        string memory credential = textResolver.text(node, ARC_CREDENTIAL_KEY);
+        
+        // Credential must exist (non-empty)
+        if (bytes(credential).length == 0) {
+            revert NoArcCredential(sender);
+        }
+        
+        // Additional validation can be added here if needed
+        // For example: verify credential format, signature, etc.
+    }
+
+    /// @notice Check if the license has been revoked by admin
+    /// @dev Internal function called by beforeSwap
+    /// @param sender The address to check
+    function _checkRevocation(address sender) internal view {
+        if (revokedLicenses[sender]) {
+            revert LicenseRevoked(sender);
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            ADMIN FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Restricts function access to admin only
+    modifier onlyAdmin() {
+        if (msg.sender != admin) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
+    /// @notice Revoke a license for an address
+    /// @param user The address to revoke
+    function revokeLicense(address user) external onlyAdmin {
+        revokedLicenses[user] = true;
+        
+        // Try to get the ENS node for event emission, but don't revert if it fails
+        bytes32 node = bytes32(0);
+        try this.getENSNodeForAddress(user) returns (bytes32 _node) {
+            node = _node;
+        } catch {
+            // If getting the node fails, just use zero
+        }
+        
+        emit LicenseRevokedEvent(user, node);
+    }
+
+    /// @notice Restore a previously revoked license
+    /// @param user The address to restore
+    function restoreLicense(address user) external onlyAdmin {
+        revokedLicenses[user] = false;
+        emit LicenseRestored(user);
+    }
+
+    /// @notice Transfer admin rights to a new address
+    /// @param newAdmin The new admin address
+    function updateAdmin(address newAdmin) external onlyAdmin {
+        if (newAdmin == address(0)) revert InvalidAddress();
+        address oldAdmin = admin;
+        admin = newAdmin;
+        emit AdminUpdated(oldAdmin, newAdmin);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        NAMEHASH COMPUTATION
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice Compute the ENS namehash for a given name and check if it's a subdomain of parentNode
     /// @dev Implements the ENS namehash algorithm

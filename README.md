@@ -1,98 +1,60 @@
-# PermitPoolHook - Uniswap v4 ENS License Hook
+# PermitPoolHook
 
-A Uniswap v4 Hook that enforces trading permissions based on ENS licenses with Arc DID credentials.
+## Concept
 
-## Overview
+A permissioned liquidity protocol enforcing trader eligibility through cryptographic identity verification on Ethereum Name Service infrastructure.
 
-PermitPoolHook is a Uniswap v4 custom hook that verifies traders have valid ENS-based licenses before allowing swaps. It checks:
+## Architecture
 
-1. **ENS Subdomain Ownership** - Trader owns an ENS subdomain under a parent node
-2. **Fuse Requirements** - CANNOT_TRANSFER (0x10) and PARENT_CANNOT_CONTROL (0x40000) fuses are burned
-3. **Arc DID Credentials** - Valid Arc DID credential exists in ENS text records
-4. **Revocation Status** - License hasn't been revoked by admin
+The system implements a **gatekeeper pattern** at the swap interface layer, leveraging ENS's hierarchical namespace as a credential substrate. Trading privileges are encoded as:
 
-## Development Status
+1. **Namespace membership** - Subdomain ownership under a controlled parent node
+2. **Immutability guarantees** - Cryptographic fuses preventing credential transfer or parent revocation
+3. **Off-chain attestations** - DID credentials resolved via ENS text records
+4. **Centralized override** - Administrative blacklist for emergency revocation
 
-**Stage 1: Basic Hook Structure** ✅ **COMPLETE**
+## Mechanism Design
 
-- ✅ Foundry project setup
-- ✅ BaseHook integration with Uniswap v4
-- ✅ ENS Name Wrapper interface definition
-- ✅ Custom errors and events
-- ✅ Admin revocation mapping
-- ✅ Skeleton beforeSwap() implementation
+The hook intercepts swap attempts and performs **sequential verification**:
 
-**Stage 2: ENS Verification Logic** ✅ **COMPLETE**
-
-- ✅ ENS subdomain ownership verification
-- ✅ Fuse verification logic (CANNOT_TRANSFER & PARENT_CANNOT_CONTROL)
-- ✅ Helper functions for ENS operations
-- ✅ Comprehensive error handling
-- ✅ Namehash computation algorithm
-
-**Stage 3: License Verification & Finalization** 🚧 **NEXT**
-
-- [ ] Arc DID credential verification
-- [ ] Complete beforeSwap() implementation
-- [ ] Admin revocation functions
-- [ ] Gas optimization
-- [ ] Testing
-
-## Technical Details
-
-### Contract: `PermitPoolHook.sol`
-
-**Inherits:** BaseHook (Uniswap v4)
-
-**Dependencies:**
-
-- Uniswap v4-core
-- Uniswap v4-periphery
-
-**Key Components:**
-
-- **INameWrapper Interface** - Interacts with ENS Name Wrapper (Sepolia: `0x0635513f179D50A207757E05759CbD106d7dFcE8`)
-- **Fuse Constants** - CANNOT_TRANSFER, PARENT_CANNOT_CONTROL
-- **Admin Controls** - License revocation capabilities
-- **Events** - LicenseChecked, LicenseRevokedEvent
-
-### Installation
-
-```bash
-# Install dependencies (requires Foundry)
-forge install Uniswap/v4-core --no-git --no-commit
-forge install Uniswap/v4-periphery --no-git --no-commit
+```
+Swap Request → ENS Reverse Lookup → Parent Node Validation → Fuse Verification → DID Resolution → Blacklist Check → Execution
 ```
 
-### Build
+Each stage acts as a **boolean gate**: failure at any point reverts the transaction. The verification is **stateless** (reads only) except for the revocation registry, minimizing state manipulation attack vectors.
 
-```bash
-forge build
+## Technical Primitives
+
+- **ENS NameWrapper**: Provides fuse-based permission semantics and ownership proofs
+- **ENS Resolver**: Exposes off-chain DID credentials via text records
+- **Uniswap v4 Hooks**: Enables pre-swap execution interception
+- **Namehash Algorithm**: Ensures cryptographic binding of names to unique identifiers
+
+## Key Insight
+
+Traditional permissioned pools require trusted operators or complex governance. This design **delegates credential issuance to ENS** while maintaining swap-layer enforcement, creating a separation of concerns:
+
+- **ENS layer**: Identity management and credential lifecycle
+- **Hook layer**: Permission enforcement and revocation
+- **DEX layer**: Price discovery and settlement
+
+The result is a **composable permission system** compatible with any Uniswap v4 pool, enabling selective market access without fragmenting liquidity across separate instances.
+
+## Deployment Parameters
+
+```solidity
+constructor(
+    IPoolManager poolManager,      // Uniswap v4 core
+    address nameWrapper,           // ENS credential provider
+    address textResolver,          // DID resolver
+    bytes32 parentNode,            // Namespace root
+    address admin                  // Revocation authority
+)
 ```
 
-## Configuration
+## Use Cases
 
-- **Network:** Sepolia Testnet
-- **Solidity:** ^0.8.26
-- **EVM Version:** Cancun
-
-## Stage 1 Commit
-
-This commit includes:
-
-- Project structure and configuration
-- Complete interface definitions
-- All error and event declarations
-- Skeleton hook implementation with TODOs
-- Documentation
-
-## Next Steps
-
-Stage 2 will implement:
-
-- ENS subdomain ownership checks
-- Fuse verification logic
-- ENS node computation helpers
-- Integration of verification into beforeSwap()
-
-
+- **Regulatory compliance**: KYC/AML-gated trading
+- **Private markets**: Accredited investor restrictions
+- **Organizational pools**: DAO-member-only liquidity
+- **Reputation systems**: Merit-based trading privileges

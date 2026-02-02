@@ -3,3 +3,10 @@ out/
 cache/
 broadcast/
 .env
+
+# Ignore all markdown files except README.md
+*.md
+!README.md
+
+# Ignore all text files
+*.txt
