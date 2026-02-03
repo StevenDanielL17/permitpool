@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {BaseHook} from "v4-periphery/src/utils/BaseHook.sol";
-import {Hooks} from "v4-core/src/libraries/Hooks.sol";
-import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
-import {PoolKey} from "v4-core/src/types/PoolKey.sol";
-import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "v4-core/src/types/BeforeSwapDelta.sol";
+import {BaseHook} from "v4-periphery/utils/BaseHook.sol";
+import {Hooks} from "v4-core/libraries/Hooks.sol";
+import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+import {PoolKey} from "v4-core/types/PoolKey.sol";
+import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "v4-core/types/BeforeSwapDelta.sol";
 
 /*//////////////////////////////////////////////////////////////
                             INTERFACES
@@ -202,18 +202,15 @@ contract PermitPoolHook is BaseHook {
     ///      3. ENS name has a valid Arc DID credential in text records
     ///      4. License hasn't been revoked by admin
     /// @param sender The address initiating the swap
-    /// @param key The pool key
-    /// @param params The swap parameters
-    /// @param hookData Additional hook data
     /// @return bytes4 The function selector if successful
     /// @return BeforeSwapDelta The delta (always zero for this hook)
     /// @return uint24 LP fee (always zero for this hook)
-    function beforeSwap(
+    function _beforeSwap(
         address sender,
         PoolKey calldata /* key */,
-        IPoolManager.SwapParams calldata /* params */,
+        SwapParams calldata /* params */,
         bytes calldata /* hookData */
-    ) external override returns (bytes4, BeforeSwapDelta, uint24) {
+    ) internal override returns (bytes4, BeforeSwapDelta, uint24) {
         // Verify ENS ownership and get node (includes parent verification)
         bytes32 node = _verifyENSOwnership(sender);
         
