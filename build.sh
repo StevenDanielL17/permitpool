@@ -18,8 +18,9 @@ echo -e "${BLUE}🔨 PermitPool Build Optimizer${NC}"
 echo -e "${BLUE}==============================${NC}\n"
 
 # Export memory optimizations
-export NODE_OPTIONS="--max-old-space-size=3072"
+export NODE_OPTIONS="--max-old-space-size=4096 --max-semi-space-size=512"
 export NODE_ENV="production"
+export DISABLE_TURBOPACK=1
 
 # Install dependencies if missing
 if [ ! -d "admin-portal/node_modules" ] || [ ! -d "trader-app/node_modules" ]; then

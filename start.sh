@@ -24,12 +24,14 @@ if [ ! -d "admin-portal/node_modules" ] || [ ! -d "trader-app/node_modules" ]; t
 fi
 
 # Export memory optimizations
-export NODE_OPTIONS="--max-old-space-size=2048"
+export NODE_OPTIONS="--max-old-space-size=4096 --max-semi-space-size=512"
 export NODE_ENV="development"
 export NEXT_TELEMETRY_DISABLED=1
+export DISABLE_TURBOPACK=1
 
 echo -e "${GREEN}✅ Environment optimized${NC}"
-echo -e "${GREEN}   - Node max old space: 2048MB${NC}"
+echo -e "${GREEN}   - Node max old space: 4096MB${NC}"
+echo -e "${GREEN}   - Turbopack disabled (SWC mode)${NC}"
 echo -e "${GREEN}   - Telemetry disabled${NC}\n"
 
 # Check which mode to run
