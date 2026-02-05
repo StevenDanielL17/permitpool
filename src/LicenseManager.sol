@@ -70,7 +70,7 @@ contract LicenseManager {
     uint32 public constant PARENT_CANNOT_CONTROL = 0x10000;    // Bit 16
     
     /// @notice Text record key for Arc DID credentials
-    string public constant ARC_CREDENTIAL_KEY = "arc.did";
+    string public constant ARC_CREDENTIAL_KEY = "arc.credential";
     
     // ============================================
     // EVENTS

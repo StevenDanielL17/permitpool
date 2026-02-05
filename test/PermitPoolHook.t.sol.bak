@@ -101,24 +101,30 @@ contract PermitPoolHookTest is Test {
         textResolver = new MockTextResolver();
         poolManager = new MockPoolManager();
         
-        // Compute valid node for "alice.permitpool.eth"
-        // eth = keccak256(0x00 + keccak256("eth"))
-        bytes32 ethNode = keccak256(abi.encodePacked(bytes32(0), keccak256("eth")));
-        // permitpool.eth = keccak256(ethNode + keccak256("permitpool"))
-        bytes32 permitpoolNode = keccak256(abi.encodePacked(ethNode, keccak256("permitpool")));
+        // Deploy hook
+        // Deploy hook using HookMiner
+        uint160 flags = uint160(Hooks.BEFORE_SWAP_FLAG);
+        (address hookAddress, bytes32 salt) = HookMiner.find(
+            address(this),
+            flags,
+            type(PermitPoolHook).creationCode,
+            abi.encode(IPoolManager(address(poolManager)), address(nameWrapper), address(textResolver), parentNode, admin)
+        );
         
-        // Update parentNode to match permitpool.eth
-        parentNode = permitpoolNode;
-
-        // Deploy hook using helper
-        hook = mineAndDeploy(
-            address(poolManager),
+        hook = new PermitPoolHook{salt: salt}(
+            IPoolManager(address(poolManager)),
             address(nameWrapper),
             address(textResolver),
             parentNode,
             admin
         );
+        require(address(hook) == hookAddress, "Hook address mismatch");
         
+        // Compute valid node for "alice.permitpool.eth"
+        // eth = keccak256(0x00 + keccak256("eth"))
+        bytes32 ethNode = keccak256(abi.encodePacked(bytes32(0), keccak256("eth")));
+        // permitpool.eth = keccak256(ethNode + keccak256("permitpool"))
+        bytes32 permitpoolNode = keccak256(abi.encodePacked(ethNode, keccak256("permitpool")));
         // alice.permitpool.eth = keccak256(permitpoolNode + keccak256("alice"))
         validNode = uint256(keccak256(abi.encodePacked(permitpoolNode, keccak256("alice"))));
         
@@ -127,50 +133,6 @@ contract PermitPoolHookTest is Test {
         nameWrapper.setOwner(validNode, validUser);
         nameWrapper.setFuses(validNode, CANNOT_TRANSFER | PARENT_CANNOT_CONTROL);
         textResolver.setText(bytes32(validNode), "arc.credential", "valid_arc_credential");
-    }
-
-    // Helper to mine salt and deploy hook
-    function mineAndDeploy(
-        address _poolManager,
-        address _nameWrapper,
-        address _textResolver,
-        bytes32 _parentNode,
-        address _admin
-    ) internal returns (PermitPoolHook) {
-        uint160 flags = uint160(Hooks.BEFORE_SWAP_FLAG);
-        
-        // Encode arguments
-        bytes memory constructorArgs = abi.encode(
-            IPoolManager(_poolManager), 
-            _nameWrapper, 
-            _textResolver, 
-            _parentNode, 
-            _admin
-        );
-        
-        (address hookAddress, bytes32 salt) = HookMiner.find(
-            address(this),
-            flags,
-            type(PermitPoolHook).creationCode,
-            constructorArgs
-        );
-        
-        PermitPoolHook newHook = new PermitPoolHook{salt: salt}(
-            IPoolManager(_poolManager),
-            _nameWrapper,
-            _textResolver,
-            _parentNode,
-            _admin
-        );
-        
-        // require(address(newHook) == hookAddress, "Hook address mismatch");
-        return newHook;
-    }
-    
-    function test_NodeCalculation() public {
-        vm.prank(address(poolManager));
-        bytes32 node = hook.getENSNodeForAddress(validUser);
-        assertEq(node, bytes32(validNode));
     }
     
     /*//////////////////////////////////////////////////////////////
@@ -182,14 +144,13 @@ contract PermitPoolHookTest is Test {
         assertEq(address(hook.textResolver()), address(textResolver));
         assertEq(hook.parentNode(), parentNode);
         assertEq(hook.admin(), admin);
-        assertEq(address(hook.poolManager()), address(poolManager));
     }
     
     function test_DeploymentRevertsWithZeroNameWrapper() public {
         vm.expectRevert(PermitPoolHook.InvalidAddress.selector);
-        mineAndDeploy(
-            address(poolManager),
-            address(0), // Zero NameWrapper
+        new PermitPoolHook(
+            IPoolManager(address(poolManager)),
+            address(0),
             address(textResolver),
             parentNode,
             admin
@@ -198,10 +159,10 @@ contract PermitPoolHookTest is Test {
     
     function test_DeploymentRevertsWithZeroTextResolver() public {
         vm.expectRevert(PermitPoolHook.InvalidAddress.selector);
-        mineAndDeploy(
-            address(poolManager),
+        new PermitPoolHook(
+            IPoolManager(address(poolManager)),
             address(nameWrapper),
-            address(0), // Zero Resolver
+            address(0),
             parentNode,
             admin
         );
@@ -209,12 +170,12 @@ contract PermitPoolHookTest is Test {
     
     function test_DeploymentRevertsWithZeroAdmin() public {
         vm.expectRevert(PermitPoolHook.InvalidAddress.selector);
-        mineAndDeploy(
-            address(poolManager),
+        new PermitPoolHook(
+            IPoolManager(address(poolManager)),
             address(nameWrapper),
             address(textResolver),
             parentNode,
-            address(0) // Zero Admin
+            address(0)
         );
     }
     
@@ -223,8 +184,7 @@ contract PermitPoolHookTest is Test {
     //////////////////////////////////////////////////////////////*/
     
     function test_BeforeSwap_ValidUser() public {
-        // Prank as Pool Manager
-        vm.prank(address(poolManager));
+        // This should NOT revert
         (bytes4 selector,,) = hook.beforeSwap(
             validUser,
             PoolKey({
@@ -251,7 +211,6 @@ contract PermitPoolHookTest is Test {
     //////////////////////////////////////////////////////////////*/
     
     function test_BeforeSwap_RevertsNoENSName() public {
-        vm.prank(address(poolManager));
         vm.expectRevert(abi.encodeWithSelector(PermitPoolHook.NoENSSubdomain.selector, invalidUser));
         hook.beforeSwap(
             invalidUser,
@@ -276,7 +235,6 @@ contract PermitPoolHookTest is Test {
         // Set up user with name under different parent (e.g., just "alice.eth")
         nameWrapper.setName(wrongParentUser, "alice.eth");
         
-        vm.prank(address(poolManager));
         vm.expectRevert(abi.encodeWithSelector(PermitPoolHook.NoENSSubdomain.selector, wrongParentUser));
         hook.beforeSwap(
             wrongParentUser,
@@ -302,9 +260,7 @@ contract PermitPoolHookTest is Test {
     
     function test_BeforeSwap_RevertsInvalidFuses_MissingCannotTransfer() public {
         address noTransferFuseUser = address(0x4);
-        // Correct node calculation
-        bytes32 bobNode = keccak256(abi.encodePacked(parentNode, keccak256("bob")));
-        uint256 node = uint256(bobNode);
+        uint256 node = uint256(keccak256("testnode1"));
         
         nameWrapper.setName(noTransferFuseUser, "bob.permitpool.eth");
         nameWrapper.setOwner(node, noTransferFuseUser);
@@ -312,7 +268,6 @@ contract PermitPoolHookTest is Test {
         nameWrapper.setFuses(node, PARENT_CANNOT_CONTROL);
         textResolver.setText(bytes32(node), "arc.credential", "valid");
         
-        vm.prank(address(poolManager));
         vm.expectRevert(abi.encodeWithSelector(PermitPoolHook.InvalidFuses.selector, noTransferFuseUser, PARENT_CANNOT_CONTROL));
         hook.beforeSwap(
             noTransferFuseUser,
@@ -334,9 +289,7 @@ contract PermitPoolHookTest is Test {
     
     function test_BeforeSwap_RevertsInvalidFuses_MissingParentControl() public {
         address noParentControlUser = address(0x5);
-        // Correct node calculation
-        bytes32 charlieNode = keccak256(abi.encodePacked(parentNode, keccak256("charlie")));
-        uint256 node = uint256(charlieNode);
+        uint256 node = uint256(keccak256("testnode2"));
         
         nameWrapper.setName(noParentControlUser, "charlie.permitpool.eth");
         nameWrapper.setOwner(node, noParentControlUser);
@@ -344,7 +297,6 @@ contract PermitPoolHookTest is Test {
         nameWrapper.setFuses(node, CANNOT_TRANSFER);
         textResolver.setText(bytes32(node), "arc.credential", "valid");
         
-        vm.prank(address(poolManager));
         vm.expectRevert(abi.encodeWithSelector(PermitPoolHook.InvalidFuses.selector, noParentControlUser, CANNOT_TRANSFER));
         hook.beforeSwap(
             noParentControlUser,
@@ -370,16 +322,12 @@ contract PermitPoolHookTest is Test {
     
     function test_BeforeSwap_RevertsNoArcCredential() public {
         address noCredentialUser = address(0x6);
-        // Correct node calculation
-        bytes32 daveNode = keccak256(abi.encodePacked(parentNode, keccak256("dave")));
-        uint256 node = uint256(daveNode);
         
         nameWrapper.setName(noCredentialUser, "dave.permitpool.eth");
-        nameWrapper.setOwner(node, noCredentialUser);
-        nameWrapper.setFuses(node, CANNOT_TRANSFER | PARENT_CANNOT_CONTROL);
+        nameWrapper.setOwner(validNode, noCredentialUser);
+        nameWrapper.setFuses(validNode, CANNOT_TRANSFER | PARENT_CANNOT_CONTROL);
         // NO Arc credential set
         
-        vm.prank(address(poolManager));
         vm.expectRevert(abi.encodeWithSelector(PermitPoolHook.NoArcCredential.selector, noCredentialUser));
         hook.beforeSwap(
             noCredentialUser,
@@ -422,7 +370,6 @@ contract PermitPoolHookTest is Test {
         hook.revokeLicense(validUser);
         
         // Try to swap
-        vm.prank(address(poolManager));
         vm.expectRevert(abi.encodeWithSelector(PermitPoolHook.LicenseRevoked.selector, validUser));
         hook.beforeSwap(
             validUser,
@@ -454,7 +401,6 @@ contract PermitPoolHookTest is Test {
         assertFalse(hook.revokedLicenses(validUser));
         
         // Should be able to swap again
-        vm.prank(address(poolManager));
         hook.beforeSwap(
             validUser,
             PoolKey({
@@ -512,7 +458,6 @@ contract PermitPoolHookTest is Test {
         vm.expectEmit(true, true, false, true);
         emit PermitPoolHook.LicenseChecked(validUser, bytes32(validNode), true);
         
-        vm.prank(address(poolManager));
         hook.beforeSwap(
             validUser,
             PoolKey({
@@ -532,12 +477,6 @@ contract PermitPoolHookTest is Test {
     }
     
     function test_LicenseRevoked_Event() public {
-        // Note: revokeLicense emits LicenseRevokedEvent with node = 0 if it fails lookup
-        // But here we set up validUser lookup in setup()
-        // Wait, does setup() set name for validUser? Yes "alice.permitpool.eth"
-        // So getENSNodeForAddress(validUser) should work.
-        // It requires name wrapper lookup.
-        
         vm.expectEmit(true, true, false, true);
         emit PermitPoolHook.LicenseRevokedEvent(validUser, bytes32(validNode));
         

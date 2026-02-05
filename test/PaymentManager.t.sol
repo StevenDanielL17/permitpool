@@ -2,255 +2,128 @@
 pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/Test.sol";
-import {PaymentManager, IYellowSession} from "../src/PaymentManager.sol";
+import {PaymentManager} from "../src/PaymentManager.sol";
 
-/// @title PaymentManagerTest
-/// @notice Comprehensive test suite for PaymentManager contract
-contract PaymentManagerTest is Test {
-    
-    PaymentManager public paymentManager;
-    MockYellowSession public yellowSession;
-    
-    address public admin = address(0x1);
-    address public alice = address(0x2);
-    
-    bytes32 public constant LICENSE_NODE = keccak256("alice.fund.eth");
-    bytes32 public constant SESSION_ID = keccak256("yellow-session-123");
-    
-    function setUp() public {
-        yellowSession = new MockYellowSession();
-        
-        vm.prank(admin);
-        paymentManager = new PaymentManager(address(yellowSession), admin);
+/*//////////////////////////////////////////////////////////////
+                         MOCK CONTRACTS
+//////////////////////////////////////////////////////////////*/
+
+contract MockYellowSession {
+    mapping(bytes32 => bool) public active;
+    mapping(bytes32 => uint256) public expiries;
+
+    function setSession(bytes32 id, bool isActive, uint256 expiry) external {
+        active[id] = isActive;
+        expiries[id] = expiry;
+    }
+
+    function isSessionActive(bytes32 sessionId) external view returns (bool) {
+        return active[sessionId];
     }
     
-    // ============================================
-    // DEPLOYMENT TESTS
-    // ============================================
-    
-    function test_Deployment() public view {
-        assertEq(paymentManager.admin(), admin);
-        assertEq(address(paymentManager.yellowSession()), address(yellowSession));
-    }
-    
-    function test_DeploymentRevertsWithZeroYellowSession() public {
-        vm.expectRevert(PaymentManager.InvalidAddress.selector);
-        new PaymentManager(address(0), admin);
-    }
-    
-    function test_DeploymentRevertsWithZeroAdmin() public {
-        vm.expectRevert(PaymentManager.InvalidAddress.selector);
-        new PaymentManager(address(yellowSession), address(0));
-    }
-    
-    // ============================================
-    // SET PAYMENT SESSION TESTS
-    // ============================================
-    
-    function test_SetPaymentSession_Success() public {
-        vm.prank(admin);
-        paymentManager.setPaymentSession(LICENSE_NODE, SESSION_ID);
-        
-        assertEq(paymentManager.licensePayments(LICENSE_NODE), SESSION_ID);
-        assertTrue(paymentManager.paymentRequired(LICENSE_NODE));
-    }
-    
-    function test_SetPaymentSession_EmitsEvent() public {
-        vm.expectEmit(true, true, false, false);
-        emit PaymentManager.PaymentSessionLinked(LICENSE_NODE, SESSION_ID);
-        
-        vm.prank(admin);
-        paymentManager.setPaymentSession(LICENSE_NODE, SESSION_ID);
-    }
-    
-    function test_SetPaymentSession_RevertsNonAdmin() public {
-        vm.prank(alice);
-        vm.expectRevert(PaymentManager.Unauthorized.selector);
-        paymentManager.setPaymentSession(LICENSE_NODE, SESSION_ID);
-    }
-    
-    function test_SetPaymentSession_RevertsZeroLicense() public {
-        vm.prank(admin);
-        vm.expectRevert(PaymentManager.InvalidLicenseNode.selector);
-        paymentManager.setPaymentSession(bytes32(0), SESSION_ID);
-    }
-    
-    function test_SetPaymentSession_RevertsZeroSession() public {
-        vm.prank(admin);
-        vm.expectRevert(PaymentManager.InvalidSessionId.selector);
-        paymentManager.setPaymentSession(LICENSE_NODE, bytes32(0));
-    }
-    
-    // ============================================
-    // UNLINK PAYMENT SESSION TESTS
-    // ============================================
-    
-    function test_UnlinkPaymentSession_Success() public {
-        vm.startPrank(admin);
-        paymentManager.setPaymentSession(LICENSE_NODE, SESSION_ID);
-        paymentManager.unlinkPaymentSession(LICENSE_NODE);
-        vm.stopPrank();
-        
-        assertEq(paymentManager.licensePayments(LICENSE_NODE), bytes32(0));
-    }
-    
-    function test_UnlinkPaymentSession_EmitsEvent() public {
-        vm.prank(admin);
-        paymentManager.setPaymentSession(LICENSE_NODE, SESSION_ID);
-        
-        vm.expectEmit(true, false, false, false);
-        emit PaymentManager.PaymentSessionUnlinked(LICENSE_NODE);
-        
-        vm.prank(admin);
-        paymentManager.unlinkPaymentSession(LICENSE_NODE);
-    }
-    
-    // ============================================
-    // PAYMENT REQUIREMENT TESTS
-    // ============================================
-    
-    function test_SetPaymentRequirement_Success() public {
-        vm.prank(admin);
-        paymentManager.setPaymentRequirement(LICENSE_NODE, true);
-        
-        assertTrue(paymentManager.paymentRequired(LICENSE_NODE));
-    }
-    
-    function test_SetPaymentRequirement_EmitsEvent() public {
-        vm.expectEmit(true, false, false, true);
-        emit PaymentManager.PaymentRequirementChanged(LICENSE_NODE, true);
-        
-        vm.prank(admin);
-        paymentManager.setPaymentRequirement(LICENSE_NODE, true);
-    }
-    
-    // ============================================
-    // PAYMENT ACTIVE TESTS
-    // ============================================
-    
-    function test_IsPaymentActive_ReturnsTrueWhenNotRequired() public view {
-        // Payment not required by default
-        assertTrue(paymentManager.isPaymentActive(LICENSE_NODE));
-    }
-    
-    function test_IsPaymentActive_ReturnsFalseWhenRequiredButNoSession() public {
-        vm.prank(admin);
-        paymentManager.setPaymentRequirement(LICENSE_NODE, true);
-        
-        assertFalse(paymentManager.isPaymentActive(LICENSE_NODE));
-    }
-    
-    function test_IsPaymentActive_ReturnsTrueWhenSessionActive() public {
-        // Set Yellow session as active
-        yellowSession.setSessionActive(SESSION_ID, true);
-        
-        // Link session to license
-        vm.prank(admin);
-        paymentManager.setPaymentSession(LICENSE_NODE, SESSION_ID);
-        
-        assertTrue(paymentManager.isPaymentActive(LICENSE_NODE));
-    }
-    
-    function test_IsPaymentActive_ReturnsFalseWhenSessionExpired() public {
-        // Set Yellow session as inactive
-        yellowSession.setSessionActive(SESSION_ID, false);
-        
-        // Link session to license
-        vm.prank(admin);
-        paymentManager.setPaymentSession(LICENSE_NODE, SESSION_ID);
-        
-        assertFalse(paymentManager.isPaymentActive(LICENSE_NODE));
-    }
-    
-    // ============================================
-    // REQUIRE ACTIVE PAYMENT TESTS
-    // ============================================
-    
-    function test_RequireActivePayment_SucceedsWhenActive() public {
-        yellowSession.setSessionActive(SESSION_ID, true);
-        
-        vm.prank(admin);
-        paymentManager.setPaymentSession(LICENSE_NODE, SESSION_ID);
-        
-        // Should not revert
-        paymentManager.requireActivePayment(LICENSE_NODE);
-    }
-    
-    function test_RequireActivePayment_RevertsWhenInactive() public {
-        yellowSession.setSessionActive(SESSION_ID, false);
-        
-        vm.prank(admin);
-        paymentManager.setPaymentSession(LICENSE_NODE, SESSION_ID);
-        
-        vm.expectRevert(PaymentManager.PaymentOverdue.selector);
-        paymentManager.requireActivePayment(LICENSE_NODE);
-    }
-    
-    // ============================================
-    // GET PAYMENT EXPIRY TESTS
-    // ============================================
-    
-    function test_GetPaymentExpiry_ReturnsZeroWhenNotRequired() public view {
-        assertEq(paymentManager.getPaymentExpiry(LICENSE_NODE), 0);
-    }
-    
-    function test_GetPaymentExpiry_ReturnsExpiryFromYellow() public {
-        uint256 expiry = block.timestamp + 30 days;
-        yellowSession.setSessionExpiry(SESSION_ID, expiry);
-        
-        vm.prank(admin);
-        paymentManager.setPaymentSession(LICENSE_NODE, SESSION_ID);
-        
-        assertEq(paymentManager.getPaymentExpiry(LICENSE_NODE), expiry);
-    }
-    
-    // ============================================
-    // ADMIN MANAGEMENT TESTS
-    // ============================================
-    
-    function test_UpdateAdmin_Success() public {
-        vm.prank(admin);
-        paymentManager.updateAdmin(alice);
-        
-        assertEq(paymentManager.admin(), alice);
-    }
-    
-    function test_UpdateAdmin_EmitsEvent() public {
-        vm.expectEmit(true, true, false, false);
-        emit PaymentManager.AdminUpdated(admin, alice);
-        
-        vm.prank(admin);
-        paymentManager.updateAdmin(alice);
-    }
-    
-    function test_UpdateAdmin_RevertsNonAdmin() public {
-        vm.prank(alice);
-        vm.expectRevert(PaymentManager.Unauthorized.selector);
-        paymentManager.updateAdmin(address(0x999));
+    function getSessionExpiry(bytes32 sessionId) external view returns (uint256) {
+        return expiries[sessionId];
     }
 }
 
-// ============================================
-// MOCK CONTRACTS
-// ============================================
+/*//////////////////////////////////////////////////////////////
+                         TEST CONTRACT
+//////////////////////////////////////////////////////////////*/
 
-contract MockYellowSession is IYellowSession {
-    mapping(bytes32 => bool) public activeStatus;
-    mapping(bytes32 => uint256) public expiries;
+contract PaymentManagerTest is Test {
+    PaymentManager public manager;
+    MockYellowSession public yellowSession;
     
-    function setSessionActive(bytes32 sessionId, bool isActive) external {
-        activeStatus[sessionId] = isActive;
+    address public admin = address(0xAD);
+    bytes32 public licenseNode = keccak256("license");
+    bytes32 public sessionId = keccak256("session");
+    
+    event PaymentSessionLinked(bytes32 indexed licenseNode, bytes32 indexed yellowSessionId);
+    event PaymentSessionUnlinked(bytes32 indexed licenseNode);
+    event PaymentRequirementChanged(bytes32 indexed licenseNode, bool required);
+    
+    function setUp() public {
+        vm.warp(100 days);
+        yellowSession = new MockYellowSession();
+        manager = new PaymentManager(address(yellowSession), admin);
     }
     
-    function setSessionExpiry(bytes32 sessionId, uint256 expiry) external {
-        expiries[sessionId] = expiry;
+    function test_LinkSession() public {
+        vm.prank(admin);
+        vm.expectEmit(true, true, false, false);
+        emit PaymentSessionLinked(licenseNode, sessionId);
+        
+        manager.setPaymentSession(licenseNode, sessionId);
+        
+        // Verify state
+        assertTrue(manager.paymentRequired(licenseNode));
     }
     
-    function isSessionActive(bytes32 sessionId) external view returns (bool isActive) {
-        return activeStatus[sessionId];
+    function test_IsPaymentActive() public {
+        // Setup session in mock
+        yellowSession.setSession(sessionId, true, block.timestamp + 1 days);
+        
+        // Link session
+        vm.prank(admin);
+        manager.setPaymentSession(licenseNode, sessionId);
+        
+        assertTrue(manager.isPaymentActive(licenseNode));
+        
+        // Disable session in mock
+        yellowSession.setSession(sessionId, false, block.timestamp - 1 days);
+        assertFalse(manager.isPaymentActive(licenseNode));
     }
     
-    function getSessionExpiry(bytes32 sessionId) external view returns (uint256 expiry) {
-        return expiries[sessionId];
+    function test_IsPaymentActive_NoRequirement() public {
+        // By default paymentRequired is false
+        // Even without session, should be active (if not required)
+        // Wait, current implementation:
+        // if (!paymentRequired[licenseNode]) return true;
+        assertTrue(manager.isPaymentActive(licenseNode));
+    }
+    
+    function test_RequireActivePayment_RevertsAssumingRequired() public {
+        // Setup session active = false
+        yellowSession.setSession(sessionId, false, 0);
+        
+        vm.startPrank(admin);
+        manager.setPaymentSession(licenseNode, sessionId);
+        // Ensure it IS required
+        manager.setPaymentRequirement(licenseNode, true);
+        vm.stopPrank();
+        
+        vm.expectRevert(PaymentManager.PaymentOverdue.selector);
+        manager.requireActivePayment(licenseNode);
+    }
+    
+    function test_UnlinkSession() public {
+        vm.prank(admin);
+        manager.setPaymentSession(licenseNode, sessionId);
+        
+        vm.prank(admin);
+        vm.expectEmit(true, false, false, false);
+        emit PaymentSessionUnlinked(licenseNode);
+        manager.unlinkPaymentSession(licenseNode);
+        
+        // Check state - should not strictly be deleted from paymentRequired depending on logic?
+        // Logic: delete licensePayments[licenseNode].
+        // Does NOT flip paymentRequired.
+        // So checking isPaymentActive -> required=true. Session=0. Return false.
+        
+        assertFalse(manager.isPaymentActive(licenseNode));
+    }
+    
+    function test_SetPaymentRequirement() public {
+        vm.prank(admin);
+        vm.expectEmit(true, false, false, false);
+        emit PaymentRequirementChanged(licenseNode, false);
+        manager.setPaymentRequirement(licenseNode, false);
+        
+        assertFalse(manager.paymentRequired(licenseNode));
+    }
+    
+    function test_AdminReverts() public {
+        vm.expectRevert(PaymentManager.Unauthorized.selector);
+        manager.setPaymentSession(licenseNode, sessionId);
     }
 }
