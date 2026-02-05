@@ -11,6 +11,11 @@ import {HookMiner} from "v4-periphery/utils/HookMiner.sol";
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 
+import {MockArcVerifier} from "../src/MockArcVerifier.sol";
+import {MockYellowClearnode} from "../src/MockYellowClearnode.sol";
+import {ArcOracle} from "../src/ArcOracle.sol";
+import {PaymentManager} from "../src/PaymentManager.sol";
+
 /*//////////////////////////////////////////////////////////////
                          MOCK CONTRACTS
 //////////////////////////////////////////////////////////////*/
@@ -83,6 +88,8 @@ contract PermitPoolHookTest is Test {
     MockNameWrapper public nameWrapper;
     MockTextResolver public textResolver;
     MockPoolManager public poolManager;
+    MockArcVerifier public arcVerifier;
+    MockYellowClearnode public clearnode;
     
     // Test addresses
     address public admin = address(0xAD);
@@ -102,31 +109,49 @@ contract PermitPoolHookTest is Test {
         poolManager = new MockPoolManager();
         
         // Compute valid node for "alice.permitpool.eth"
-        // eth = keccak256(0x00 + keccak256("eth"))
         bytes32 ethNode = keccak256(abi.encodePacked(bytes32(0), keccak256("eth")));
-        // permitpool.eth = keccak256(ethNode + keccak256("permitpool"))
         bytes32 permitpoolNode = keccak256(abi.encodePacked(ethNode, keccak256("permitpool")));
-        
-        // Update parentNode to match permitpool.eth
         parentNode = permitpoolNode;
 
-        // Deploy hook using helper
+        // Deploy Mocks
+        arcVerifier = new MockArcVerifier();
+        ArcOracle arcOracle = new ArcOracle(address(arcVerifier));
+        clearnode = new MockYellowClearnode();
+        PaymentManager paymentManager = new PaymentManager(address(clearnode), admin);
+
+        // Deploy hook
         hook = mineAndDeploy(
             address(poolManager),
             address(nameWrapper),
             address(textResolver),
             parentNode,
-            admin
+            admin,
+            address(arcOracle),
+            address(paymentManager)
         );
         
-        // alice.permitpool.eth = keccak256(permitpoolNode + keccak256("alice"))
+        // alice.permitpool.eth
         validNode = uint256(keccak256(abi.encodePacked(permitpoolNode, keccak256("alice"))));
         
-        // Setup valid user with proper ENS, fuses, and credential
+        // Setup valid user
         nameWrapper.setName(validUser, "alice.permitpool.eth");
         nameWrapper.setOwner(validNode, validUser);
         nameWrapper.setFuses(validNode, CANNOT_TRANSFER | PARENT_CANNOT_CONTROL);
         textResolver.setText(bytes32(validNode), "arc.credential", "valid_arc_credential");
+        
+        // Setup Arc and Yellow Logic
+        arcVerifier.setValid("valid_arc_credential");
+        
+        // Setup Yellow
+        bytes32 licenseNode = bytes32(validNode);
+        bytes32 sessionId = keccak256("valid_session");
+        clearnode.setSession(sessionId, true);
+        
+        // Explicitly use the paymentManager address we know, although hook.paymentManager() should be same
+        vm.startPrank(admin);
+        paymentManager.linkSession(licenseNode, sessionId);
+        paymentManager.setPaymentRequirement(licenseNode, true);
+        vm.stopPrank();
     }
 
     // Helper to mine salt and deploy hook
@@ -135,7 +160,9 @@ contract PermitPoolHookTest is Test {
         address _nameWrapper,
         address _textResolver,
         bytes32 _parentNode,
-        address _admin
+        address _admin,
+        address _arcOracle,
+        address _paymentManager
     ) internal returns (PermitPoolHook) {
         uint160 flags = uint160(Hooks.BEFORE_SWAP_FLAG);
         
@@ -145,7 +172,9 @@ contract PermitPoolHookTest is Test {
             _nameWrapper, 
             _textResolver, 
             _parentNode, 
-            _admin
+            _admin,
+            _arcOracle,
+            _paymentManager
         );
         
         (address hookAddress, bytes32 salt) = HookMiner.find(
@@ -160,10 +189,12 @@ contract PermitPoolHookTest is Test {
             _nameWrapper,
             _textResolver,
             _parentNode,
-            _admin
+            _admin,
+            _arcOracle,
+            _paymentManager
         );
         
-        // require(address(newHook) == hookAddress, "Hook address mismatch");
+        require(address(newHook) == hookAddress, "Hook address mismatch");
         return newHook;
     }
     
@@ -186,35 +217,92 @@ contract PermitPoolHookTest is Test {
     }
     
     function test_DeploymentRevertsWithZeroNameWrapper() public {
+        bytes memory args = abi.encode(
+            IPoolManager(address(poolManager)), 
+            address(0), 
+            address(textResolver), 
+            parentNode, 
+            admin,
+            address(1),
+            address(2)
+        );
+        
+        (, bytes32 salt) = HookMiner.find(
+            address(this),
+            uint160(Hooks.BEFORE_SWAP_FLAG),
+            type(PermitPoolHook).creationCode,
+            args
+        );
+        
         vm.expectRevert(PermitPoolHook.InvalidAddress.selector);
-        mineAndDeploy(
-            address(poolManager),
+        new PermitPoolHook{salt: salt}(
+            IPoolManager(address(poolManager)),
             address(0), // Zero NameWrapper
             address(textResolver),
             parentNode,
-            admin
+            admin,
+            address(1),
+            address(2)
         );
     }
     
     function test_DeploymentRevertsWithZeroTextResolver() public {
+        bytes memory args = abi.encode(
+            IPoolManager(address(poolManager)), 
+            address(nameWrapper), 
+            address(0), 
+            parentNode, 
+            admin,
+            address(1),
+            address(2)
+        );
+        
+        (, bytes32 salt) = HookMiner.find(
+            address(this),
+            uint160(Hooks.BEFORE_SWAP_FLAG),
+            type(PermitPoolHook).creationCode,
+            args
+        );
+        
         vm.expectRevert(PermitPoolHook.InvalidAddress.selector);
-        mineAndDeploy(
-            address(poolManager),
+        new PermitPoolHook{salt: salt}(
+            IPoolManager(address(poolManager)),
             address(nameWrapper),
             address(0), // Zero Resolver
             parentNode,
-            admin
+            admin,
+            address(1),
+            address(2)
         );
     }
     
     function test_DeploymentRevertsWithZeroAdmin() public {
+        bytes memory args = abi.encode(
+            IPoolManager(address(poolManager)), 
+            address(nameWrapper), 
+            address(textResolver), 
+            parentNode, 
+            address(0),
+            address(1),
+            address(2)
+        );
+        
+        (, bytes32 salt) = HookMiner.find(
+            address(this),
+            uint160(Hooks.BEFORE_SWAP_FLAG),
+            type(PermitPoolHook).creationCode,
+            args
+        );
+        
         vm.expectRevert(PermitPoolHook.InvalidAddress.selector);
-        mineAndDeploy(
-            address(poolManager),
+        new PermitPoolHook{salt: salt}(
+            IPoolManager(address(poolManager)),
             address(nameWrapper),
             address(textResolver),
             parentNode,
-            address(0) // Zero Admin
+            address(0), // Zero Admin
+            address(1),
+            address(2)
         );
     }
     

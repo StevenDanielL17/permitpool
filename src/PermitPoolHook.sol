@@ -46,6 +46,9 @@ interface ITextResolver {
     function text(bytes32 node, string calldata key) external view returns (string memory);
 }
 
+import {ArcOracle} from "./ArcOracle.sol";
+import {PaymentManager} from "./PaymentManager.sol";
+
 /*//////////////////////////////////////////////////////////////
                             CONTRACT
 //////////////////////////////////////////////////////////////*/
@@ -84,6 +87,12 @@ contract PermitPoolHook is BaseHook {
     /// @notice Admin address that can revoke licenses
     address public admin;
 
+    /// @notice Arc Oracle for verifying credentials
+    ArcOracle public immutable arcOracle;
+    
+    /// @notice Payment Manager for checking Yellow Network sessions
+    PaymentManager public immutable paymentManager;
+
     /// @notice Mapping to track revoked licenses by address
     mapping(address => bool) public revokedLicenses;
 
@@ -100,18 +109,21 @@ contract PermitPoolHook is BaseHook {
     /// @param fuses The current fuses for the ENS name
     error InvalidFuses(address sender, uint32 fuses);
 
-    /// @notice Thrown when the ENS name doesn't have a valid Arc DID credential
+    /// @notice Thrown when the ENS name lacks an Arc DID credential text record
     /// @param sender The address that attempted the swap
     error NoArcCredential(address sender);
+    
+    /// @notice Thrown when the Arc credential is invalid
+    error InvalidCredential(address sender);
 
     /// @notice Thrown when the license has been revoked by admin
     /// @param sender The address that attempted the swap
     error LicenseRevoked(address sender);
 
-    /// @notice Thrown when unauthorized address attempts admin function
+    /// @notice Thrown when the caller is not the admin
     error Unauthorized();
 
-    /// @notice Thrown when an invalid address (zero address) is provided
+    /// @notice Thrown when an address parameter is zero
     error InvalidAddress();
 
     /*//////////////////////////////////////////////////////////////
@@ -148,22 +160,30 @@ contract PermitPoolHook is BaseHook {
     /// @param _textResolver The ENS Public Resolver contract address (Sepolia: 0x8FADE66B79cC9f707aB26799354482EB93a5B7dD)
     /// @param _parentNode The parent ENS node for subdomains
     /// @param _admin The admin address that can revoke licenses
+    /// @param _arcOracle The Arc Oracle address
+    /// @param _paymentManager The Payment Manager address
     constructor(
         IPoolManager _poolManager,
         address _nameWrapper,
         address _textResolver,
         bytes32 _parentNode,
-        address _admin
+        address _admin,
+        address _arcOracle,
+        address _paymentManager
     ) BaseHook(_poolManager) {
         // Validate addresses
         if (_nameWrapper == address(0)) revert InvalidAddress();
         if (_textResolver == address(0)) revert InvalidAddress();
         if (_admin == address(0)) revert InvalidAddress();
+        if (_arcOracle == address(0)) revert InvalidAddress();
+        if (_paymentManager == address(0)) revert InvalidAddress();
 
         nameWrapper = INameWrapper(_nameWrapper);
         textResolver = ITextResolver(_textResolver);
         parentNode = _parentNode;
         admin = _admin;
+        arcOracle = ArcOracle(_arcOracle);
+        paymentManager = PaymentManager(_paymentManager);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -218,11 +238,18 @@ contract PermitPoolHook is BaseHook {
         // Verify required fuses are burned
         _verifyFuses(node, sender);
         
-        // Verify Arc DID credential (Stage 3)
+        // Verify Arc DID credential (Real Integration Check)
         _verifyArcCredential(node, sender);
         
-        // Check license revocation (Stage 3)
-        _checkRevocation(sender);
+        // Check license revocation (Manual)
+        if (revokedLicenses[sender]) {
+            revert LicenseRevoked(sender);
+        }
+
+        // Check Yellow Network Payment (Real Integration Check)
+        if (!paymentManager.isPaymentCurrent(node)) {
+            revert LicenseRevoked(sender); // Or PaymentOverdue
+        }
         
         // Emit success event
         emit LicenseChecked(sender, node, true);
@@ -233,6 +260,21 @@ contract PermitPoolHook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                             HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    function _verifyArcCredential(bytes32 node, address sender) internal view {
+        // Get Arc DID credential from text records
+        string memory credential = textResolver.text(node, ARC_CREDENTIAL_KEY);
+        
+        // Credential must exist
+        if (bytes(credential).length == 0) {
+            revert NoArcCredential(sender);
+        }
+        
+        // Real Arc Oracle Check
+        if (!arcOracle.isCredentialValid(credential)) {
+            revert InvalidCredential(sender);
+        }
+    }
 
     /// @notice Compute the ENS node for a given address
     /// @dev Verifies that the resolved name is a subdomain of parentNode
@@ -305,23 +347,6 @@ contract PermitPoolHook is BaseHook {
         if (!hasCannotTransfer || !hasParentCannotControl) {
             revert InvalidFuses(sender, fuses);
         }
-    }
-
-    /// @notice Verify that the ENS name has a valid Arc DID credential
-    /// @dev Checks the text record for the Arc credential key
-    /// @param node The ENS node (namehash) to check
-    /// @param sender The address attempting the swap (for error reporting)  
-    function _verifyArcCredential(bytes32 node, address sender) internal view {
-        // Get Arc DID credential from text records
-        string memory credential = textResolver.text(node, ARC_CREDENTIAL_KEY);
-        
-        // Credential must exist (non-empty)
-        if (bytes(credential).length == 0) {
-            revert NoArcCredential(sender);
-        }
-        
-        // Additional validation can be added here if needed
-        // For example: verify credential format, signature, etc.
     }
 
     /// @notice Check if the license has been revoked by admin
