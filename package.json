@@ -1,0 +1,27 @@
+{
+  "name": "permitpool",
+  "version": "1.0.0",
+  "description": "PermitPool - Institutional DeFi with ENS-based licensing",
+  "private": true,
+  "workspaces": [
+    "admin-portal",
+    "trader-app"
+  ],
+  "scripts": {
+    "install-all": "npm install",
+    "dev": "npm run dev --workspace=admin-portal & npm run dev --workspace=trader-app",
+    "build": "npm run build --workspace=admin-portal && npm run build --workspace=trader-app",
+    "dev:admin": "npm run dev --workspace=admin-portal",
+    "dev:trader": "npm run dev --workspace=trader-app",
+    "build:admin": "npm run build --workspace=admin-portal",
+    "build:trader": "npm run build --workspace=trader-app",
+    "lint": "npm run lint --workspaces",
+    "type-check": "npm run type-check --workspaces"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.4.5"
+  }
+}
