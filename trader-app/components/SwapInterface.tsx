@@ -1,36 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useAccount } from 'wagmi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ArrowDownUp } from 'lucide-react';
+import { ArrowDownUp, Info } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TOKENS } from '@/lib/contracts/addresses';
 
 interface SwapInterfaceProps {
   licenseNode: `0x${string}`;
 }
 
-export function SwapInterface(props: SwapInterfaceProps) {
+export function SwapInterface({ licenseNode }: SwapInterfaceProps) {
+  const { address, isConnected } = useAccount();
   const [fromAmount, setFromAmount] = useState('');
   const [toAmount, setToAmount] = useState('');
   const [fromToken, setFromToken] = useState<'USDC' | 'WETH'>('USDC');
   const [toToken, setToToken] = useState<'USDC' | 'WETH'>('WETH');
-  const [isSwapping, setIsSwapping] = useState(false);
-  const [swapStatus, setSwapStatus] = useState<string>('');
-
-  const handleSwap = async () => {
-    setIsSwapping(true);
-    setSwapStatus('Preparing swap...');
-    
-    // Simulate swap (in production, call actual Uniswap contract)
-    setTimeout(() => {
-      setSwapStatus('Swap executed successfully!');
-      setIsSwapping(false);
-      setFromAmount('');
-      setToAmount('');
-    }, 2000);
-  };
 
   const toggleTokens = () => {
     setFromToken(toToken);
@@ -39,8 +27,45 @@ export function SwapInterface(props: SwapInterfaceProps) {
     setToAmount(fromAmount);
   };
 
+  const handleSwap = useCallback(() => {
+    if (!isConnected) {
+      alert('Please connect your wallet');
+      return;
+    }
+
+    if (!fromAmount || !toAmount) {
+      alert('Please enter amounts');
+      return;
+    }
+
+    if (fromToken === toToken) {
+      alert('Please select different tokens');
+      return;
+    }
+
+    // In production: Route through Uniswap v4
+    // The PermitPoolHook validates licenses on every swap
+    console.log('Swap request:', {
+      from: fromAmount,
+      fromToken,
+      to: toAmount,
+      toToken,
+      licenseNode,
+      userAddress: address,
+    });
+
+    alert(`Swap ready to route through Uniswap v4 with your license\n\nFrom: ${fromAmount} ${fromToken}\nTo: ${toAmount} ${toToken}`);
+  }, [isConnected, fromAmount, toAmount, fromToken, toToken, address, licenseNode]);
+
   return (
     <div className="space-y-4">
+      <Alert className="border-blue-200 bg-blue-50">
+        <Info className="h-4 w-4 text-blue-600" />
+        <AlertDescription className="text-blue-800">
+          <strong>License Verified:</strong> Your trading license grants access to this Uniswap v4 pool. All swaps route through the PermitPoolHook for verification.
+        </AlertDescription>
+      </Alert>
+
       <div className="space-y-2">
         <label className="block text-sm font-medium">From</label>
         <div className="flex gap-2">
@@ -54,7 +79,7 @@ export function SwapInterface(props: SwapInterfaceProps) {
           <select
             value={fromToken}
             onChange={(e) => setFromToken(e.target.value as 'USDC' | 'WETH')}
-            className="px-4 py-2 border rounded-md"
+            className="px-4 py-2 border rounded-md bg-white"
           >
             <option value="USDC">USDC</option>
             <option value="WETH">WETH</option>
@@ -85,7 +110,7 @@ export function SwapInterface(props: SwapInterfaceProps) {
           <select
             value={toToken}
             onChange={(e) => setToToken(e.target.value as 'USDC' | 'WETH')}
-            className="px-4 py-2 border rounded-md"
+            className="px-4 py-2 border rounded-md bg-white"
           >
             <option value="USDC">USDC</option>
             <option value="WETH">WETH</option>
@@ -98,23 +123,21 @@ export function SwapInterface(props: SwapInterfaceProps) {
 
       <div className="pt-4 space-y-2">
         <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Slippage Tolerance:</span>
-          <span>0.5%</span>
+          <span className="text-gray-600">Route:</span>
+          <span>Uniswap v4 + PermitPoolHook</span>
         </div>
-        
-        {swapStatus && (
-          <div className="text-sm text-center py-2 text-green-600">
-            {swapStatus}
-          </div>
-        )}
         
         <Button
           onClick={handleSwap}
-          disabled={!fromAmount || !toAmount || fromToken === toToken || isSwapping}
+          disabled={!fromAmount || !toAmount || fromToken === toToken}
           className="w-full"
         >
-          {isSwapping ? 'Swapping...' : 'Execute Swap'}
+          Execute Swap (Demo)
         </Button>
+
+        <p className="text-xs text-center text-gray-600">
+          Demo mode - In production, this routes through Uniswap v4
+        </p>
       </div>
     </div>
   );
