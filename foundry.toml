@@ -4,6 +4,11 @@ out = "out"
 libs = ["lib"]
 solc_version = "0.8.26"
 evm_version = "cancun"
+remappings = [
+    "v4-core/=lib/v4-periphery/lib/v4-core/src/",
+    "@uniswap/v4-core/=lib/v4-periphery/lib/v4-core/",
+    "v4-periphery/=lib/v4-periphery/src/"
+]
 
 [rpc_endpoints]
 sepolia = "${SEPOLIA_RPC_URL}"

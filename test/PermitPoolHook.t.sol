@@ -3,10 +3,11 @@ pragma solidity ^0.8.26;
 
 import {Test} from "forge-std/Test.sol";
 import {PermitPoolHook} from "../src/PermitPoolHook.sol";
-import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
-import {PoolKey} from "v4-core/types/PoolKey.sol";
-import {Currency} from "v4-core/types/Currency.sol";
-import {IHooks} from "v4-core/interfaces/IHooks.sol";
+import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
+import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
+import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
+import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 
 /*//////////////////////////////////////////////////////////////
                          MOCK CONTRACTS
@@ -181,7 +182,7 @@ contract PermitPoolHookTest is Test {
                 tickSpacing: 60,
                 hooks: IHooks(address(0))
             }),
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -100,
                 sqrtPriceLimitX96: 0
@@ -208,7 +209,7 @@ contract PermitPoolHookTest is Test {
                 tickSpacing: 60,
                 hooks: IHooks(address(0))
             }),
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -100,
                 sqrtPriceLimitX96: 0
@@ -232,7 +233,7 @@ contract PermitPoolHookTest is Test {
                 tickSpacing: 60,
                 hooks: IHooks(address(0))
             }),
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -100,
                 sqrtPriceLimitX96: 0
@@ -265,7 +266,7 @@ contract PermitPoolHookTest is Test {
                 tickSpacing: 60,
                 hooks: IHooks(address(0))
             }),
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -100,
                 sqrtPriceLimitX96: 0
@@ -294,7 +295,7 @@ contract PermitPoolHookTest is Test {
                 tickSpacing: 60,
                 hooks: IHooks(address(0))
             }),
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -100,
                 sqrtPriceLimitX96: 0
@@ -325,7 +326,7 @@ contract PermitPoolHookTest is Test {
                 tickSpacing: 60,
                 hooks: IHooks(address(0))
             }),
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -100,
                 sqrtPriceLimitX96: 0
@@ -367,7 +368,7 @@ contract PermitPoolHookTest is Test {
                 tickSpacing: 60,
                 hooks: IHooks(address(0))
             }),
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -100,
                 sqrtPriceLimitX96: 0
@@ -397,7 +398,7 @@ contract PermitPoolHookTest is Test {
                 tickSpacing: 60,
                 hooks: IHooks(address(0))
             }),
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -100,
                 sqrtPriceLimitX96: 0
@@ -454,7 +455,7 @@ contract PermitPoolHookTest is Test {
                 tickSpacing: 60,
                 hooks: IHooks(address(0))
             }),
-            IPoolManager.SwapParams({
+            SwapParams({
                 zeroForOne: true,
                 amountSpecified: -100,
                 sqrtPriceLimitX96: 0
