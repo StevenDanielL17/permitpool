@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +26,59 @@ interface License {
   issuedAt: string;
   arcCredential?: string;
 }
+
+const LicenseRow = memo(function LicenseRow({
+  license,
+  onDetails,
+  onRevoke,
+}: {
+  license: License;
+  onDetails: (l: License) => void;
+  onRevoke: (l: License) => void;
+}) {
+  return (
+    <div
+      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition"
+    >
+      <div className="flex-1">
+        <h4 className="font-medium">{license.subdomain}.fund.eth</h4>
+        <p className="text-sm text-gray-600">
+          {license.owner.slice(0, 10)}...{license.owner.slice(-8)}
+        </p>
+        <p className="text-xs text-gray-500">Issued: {license.issuedAt}</p>
+      </div>
+      <div className="flex items-center gap-2">
+        {license.status === 'active' ? (
+          <Badge variant="default" className="gap-1">
+            <CheckCircle2 className="h-3 w-3" />
+            Active
+          </Badge>
+        ) : (
+          <Badge variant="destructive" className="gap-1">
+            <XCircle className="h-3 w-3" />
+            Revoked
+          </Badge>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onDetails(license)}
+        >
+          Details
+        </Button>
+        {license.status === 'active' && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => onRevoke(license)}
+          >
+            Revoke
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+});
 
 export function LicenseList() {
   const [selectedLicense, setSelectedLicense] = useState<License | null>(null);
@@ -56,7 +109,7 @@ export function LicenseList() {
     },
   ];
 
-  const handleRevokeLicense = async (license: License) => {
+  const handleRevokeLicense = useCallback((license: License) => {
     if (!license.node) {
       toast.error('License node not available');
       return;
@@ -76,12 +129,14 @@ export function LicenseList() {
       console.error('Error revoking license:', error);
       toast.error('Failed to revoke license');
     }
-  };
+  }, [writeContract]);
 
   if (isSuccess) {
     setSelectedLicense(null);
     toast.success('License revoked successfully!');
   }
+
+  const memoizedLicenses = useMemo(() => licenses, []);
 
   return (
     <>
@@ -95,48 +150,12 @@ export function LicenseList() {
               <p className="text-gray-600 text-center py-8">No licenses issued yet</p>
             ) : (
               licenses.map((license) => (
-                <div
+                <LicenseRow
                   key={license.subdomain}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition"
-                >
-                  <div className="flex-1">
-                    <h4 className="font-medium">{license.subdomain}.fund.eth</h4>
-                    <p className="text-sm text-gray-600">
-                      {license.owner.slice(0, 10)}...{license.owner.slice(-8)}
-                    </p>
-                    <p className="text-xs text-gray-500">Issued: {license.issuedAt}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {license.status === 'active' ? (
-                      <Badge variant="default" className="gap-1">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Active
-                      </Badge>
-                    ) : (
-                      <Badge variant="destructive" className="gap-1">
-                        <XCircle className="h-3 w-3" />
-                        Revoked
-                      </Badge>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedLicense(license)}
-                    >
-                      Details
-                    </Button>
-                    {license.status === 'active' && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => setRevokeConfirm(license)}
-                        disabled={isRevoking || isConfirming}
-                      >
-                        {isRevoking || isConfirming ? 'Revoking...' : 'Revoke'}
-                      </Button>
-                    )}
-                  </div>
-                </div>
+                  license={license}
+                  onDetails={setSelectedLicense}
+                  onRevoke={setRevokeConfirm}
+                />
               ))
             )}
           </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ interface SwapInterfaceProps {
   licenseNode: `0x${string}`;
 }
 
-export function SwapInterface(props: SwapInterfaceProps) {
+const SwapInterfaceComponent = memo(function SwapInterface(props: SwapInterfaceProps) {
   const [fromAmount, setFromAmount] = useState('');
   const [toAmount, setToAmount] = useState('');
   const [fromToken, setFromToken] = useState<'USDC' | 'WETH'>('USDC');
@@ -19,7 +19,7 @@ export function SwapInterface(props: SwapInterfaceProps) {
   const [isSwapping, setIsSwapping] = useState(false);
   const [swapStatus, setSwapStatus] = useState<string>('');
 
-  const handleSwap = async () => {
+  const handleSwap = useCallback(async () => {
     setIsSwapping(true);
     setSwapStatus('Preparing swap...');
     
@@ -30,14 +30,30 @@ export function SwapInterface(props: SwapInterfaceProps) {
       setFromAmount('');
       setToAmount('');
     }, 2000);
-  };
+  }, []);
 
-  const toggleTokens = () => {
+  const handleFromAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setFromAmount(e.target.value);
+  }, []);
+
+  const handleToAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setToAmount(e.target.value);
+  }, []);
+
+  const handleFromTokenChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFromToken(e.target.value as 'USDC' | 'WETH');
+  }, []);
+
+  const handleToTokenChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    setToToken(e.target.value as 'USDC' | 'WETH');
+  }, []);
+
+  const toggleTokens = useCallback(() => {
     setFromToken(toToken);
     setToToken(fromToken);
     setFromAmount(toAmount);
     setToAmount(fromAmount);
-  };
+  }, [fromToken, toToken, fromAmount, toAmount]);
 
   return (
     <div className="space-y-4">
@@ -48,12 +64,12 @@ export function SwapInterface(props: SwapInterfaceProps) {
             type="number"
             placeholder="0.0"
             value={fromAmount}
-            onChange={(e) => setFromAmount(e.target.value)}
+            onChange={handleFromAmountChange}
             className="flex-1"
           />
           <select
             value={fromToken}
-            onChange={(e) => setFromToken(e.target.value as 'USDC' | 'WETH')}
+            onChange={handleFromTokenChange}
             className="px-4 py-2 border rounded-md"
           >
             <option value="USDC">USDC</option>
@@ -79,12 +95,12 @@ export function SwapInterface(props: SwapInterfaceProps) {
             type="number"
             placeholder="0.0"
             value={toAmount}
-            onChange={(e) => setToAmount(e.target.value)}
+            onChange={handleToAmountChange}
             className="flex-1"
           />
           <select
             value={toToken}
-            onChange={(e) => setToToken(e.target.value as 'USDC' | 'WETH')}
+            onChange={handleToTokenChange}
             className="px-4 py-2 border rounded-md"
           >
             <option value="USDC">USDC</option>
@@ -118,4 +134,6 @@ export function SwapInterface(props: SwapInterfaceProps) {
       </div>
     </div>
   );
-}
+});
+
+export const SwapInterface = SwapInterfaceComponent;

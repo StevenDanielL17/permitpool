@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useAccount, useReadContract } from 'wagmi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -9,25 +9,54 @@ import { SwapInterface } from '@/components/SwapInterface';
 import { CONTRACTS } from '@/lib/contracts/addresses';
 import { HOOK_ABI } from '@/lib/contracts/abis';
 
+const LICENSE_CACHE = new Map<string, { node: string; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 export default function TradingPage() {
   const { address, isConnected } = useAccount();
   const [licenseNode, setLicenseNode] = useState<`0x${string}` | null>(null);
+  const [cacheHit, setCacheHit] = useState(false);
 
-  // Check if user has a license
+  // Check cache first
+  const cachedNode = useMemo(() => {
+    if (!address) return null;
+    const cached = LICENSE_CACHE.get(address.toLowerCase());
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      setCacheHit(true);
+      return cached.node;
+    }
+    return null;
+  }, [address]);
+
+  // Check if user has a license - skip if cached
   const { data: nodeData, isLoading } = useReadContract({
     address: CONTRACTS.HOOK,
     abi: HOOK_ABI,
     functionName: 'getENSNodeForAddress',
-    args: address ? [address] : undefined,
+    args: address && !cachedNode ? [address] : undefined,
   });
 
   useEffect(() => {
+    // Use cached node if available
+    if (cachedNode) {
+      setLicenseNode(cachedNode as `0x${string}`);
+      return;
+    }
+
     if (nodeData && nodeData !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
-      setLicenseNode(nodeData as `0x${string}`);
+      const node = nodeData as `0x${string}`;
+      setLicenseNode(node);
+      // Cache the result
+      if (address) {
+        LICENSE_CACHE.set(address.toLowerCase(), {
+          node,
+          timestamp: Date.now(),
+        });
+      }
     } else {
       setLicenseNode(null);
     }
-  }, [nodeData]);
+  }, [nodeData, cachedNode, address]);
 
   if (!isConnected) {
     return (
@@ -38,7 +67,7 @@ export default function TradingPage() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading && !cacheHit) {
     return (
       <div className="container mx-auto p-8 text-center">
         <h1 className="text-4xl font-bold mb-4">Checking License...</h1>

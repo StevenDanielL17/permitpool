@@ -254,23 +254,24 @@ contract PermitPoolHook is BaseHook {
         SwapParams calldata /* params */,
         bytes calldata /* hookData */
     ) internal override returns (bytes4, BeforeSwapDelta, uint24) {
-        // Verify ENS ownership and get node (includes parent verification)
+        // ✅ OPTIMIZATION: Check revocation first (cheapest - mapping read)
+        // This saves gas for revoked users and returns early
+        if (revokedLicenses[sender]) {
+            revert LicenseRevoked(sender);
+        }
+
+        // Then verify ENS ownership and get node
         bytes32 node = _verifyENSOwnership(sender);
         
         // Verify required fuses are burned
         _verifyFuses(node, sender);
         
-        // Verify Arc DID credential (Real Integration Check)
+        // Verify Arc DID credential
         _verifyArcCredential(node, sender);
-        
-        // Check license revocation (Manual)
-        if (revokedLicenses[sender]) {
-            revert LicenseRevoked(sender);
-        }
 
-        // Check Yellow Network Payment (Real Integration Check)
+        // Check Yellow Network Payment
         if (!paymentManager.isPaymentCurrent(node)) {
-            revert LicenseRevoked(sender); // Or PaymentOverdue
+            revert LicenseRevoked(sender);
         }
         
         // Emit success event
@@ -385,6 +386,43 @@ contract PermitPoolHook is BaseHook {
         if (revokedLicenses[sender]) {
             revert LicenseRevoked(sender);
         }
+    }
+
+    /// @notice Batch verify all license properties at once
+    /// @dev Allows frontend to check all conditions in a single RPC call
+    /// @param user The address to verify
+    /// @return isValid Whether all checks pass
+    /// @return node The ENS node for this user
+    /// @return revoked Whether the license is revoked
+    /// @return paymentCurrent Whether payment is current
+    function batchVerifyLicense(address user) external view returns (
+        bool isValid,
+        bytes32 node,
+        bool revoked,
+        bool paymentCurrent
+    ) {
+        // Quick check: revocation (cheapest)
+        revoked = revokedLicenses[user];
+        if (revoked) {
+            return (false, bytes32(0), true, false);
+        }
+
+        // Get node
+        try this.getENSNodeForAddress(user) returns (bytes32 _node) {
+            node = _node;
+        } catch {
+            return (false, bytes32(0), false, false);
+        }
+
+        // Check payment status
+        try paymentManager.isPaymentCurrent(node) returns (bool _paymentCurrent) {
+            paymentCurrent = _paymentCurrent;
+        } catch {
+            paymentCurrent = false;
+        }
+
+        // All checks passed
+        isValid = !revoked && paymentCurrent && node != bytes32(0);
     }
 
     /*//////////////////////////////////////////////////////////////
