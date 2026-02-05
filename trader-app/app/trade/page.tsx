@@ -1,26 +1,49 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useAccount, useReadContract } from 'wagmi';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useAccount, useReadContract, useQueryClient } from 'wagmi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, AlertCircle, RotateCcw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { SwapInterface } from '@/components/SwapInterface';
 import { CONTRACTS } from '@/lib/contracts/addresses';
 import { HOOK_ABI } from '@/lib/contracts/abis';
 
 export default function TradingPage() {
   const { address, isConnected } = useAccount();
+  const queryClient = useQueryClient();
   const [licenseNode, setLicenseNode] = useState<`0x${string}` | null>(null);
+  const [lastRefresh, setLastRefresh] = useState(Date.now());
 
-  // Check if user has a license
-  const { data: nodeData, isLoading } = useReadContract({
+  // Check if user has a license (aggressive refetch settings for real-time updates)
+  const { data: nodeData, isLoading, refetch } = useReadContract({
     address: CONTRACTS.HOOK,
     abi: HOOK_ABI,
     functionName: 'getENSNodeForAddress',
     args: address ? [address] : undefined,
+    query: {
+      staleTime: 2000, // 2s - very fresh for instant updates
+      gcTime: 15000, // 15s cache window
+      retry: 3,
+      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+      refetchInterval: 3000, // Auto-refetch every 3s for real-time license updates
+      refetchIntervalInBackground: false,
+    },
   });
 
+  // Force refetch when address changes
+  useEffect(() => {
+    if (address) {
+      refetch();
+      // Invalidate and clear cache for clean fresh start
+      queryClient.removeQueries({
+        queryKey: ['readContract'],
+      });
+    }
+  }, [address, refetch, queryClient]);
+
+  // Watch for license data and sync state
   useEffect(() => {
     if (nodeData && nodeData !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
       setLicenseNode(nodeData as `0x${string}`);
@@ -28,6 +51,12 @@ export default function TradingPage() {
       setLicenseNode(null);
     }
   }, [nodeData]);
+
+  // Manual refresh handler - for user to manually trigger instant check
+  const handleManualRefresh = useCallback(async () => {
+    setLastRefresh(Date.now());
+    await refetch();
+  }, [refetch]);
 
   if (!isConnected) {
     return (
@@ -55,6 +84,16 @@ export default function TradingPage() {
             <h3 className="font-semibold mb-2">No Trading License Found</h3>
             <p>You need a valid trading license to use this pool.</p>
             <p className="mt-2">Please contact your administrator to request access.</p>
+            <Button 
+              onClick={handleManualRefresh}
+              disabled={isLoading}
+              className="mt-4 gap-2"
+              variant="default"
+              size="sm"
+            >
+              <RotateCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              {isLoading ? 'Checking License...' : 'Refresh License Status'}
+            </Button>
           </AlertDescription>
         </Alert>
       </div>
