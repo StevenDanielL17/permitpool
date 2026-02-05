@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useAccount, useReadContract } from 'wagmi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -13,36 +12,33 @@ import { HOOK_ABI } from '@/lib/contracts/abis';
 
 export default function TradingPage() {
   const { address, isConnected } = useAccount();
-  const queryClient = useQueryClient();
   const [licenseNode, setLicenseNode] = useState<`0x${string}` | null>(null);
   const [lastRefresh, setLastRefresh] = useState(Date.now());
 
-  // Check if user has a license (aggressive refetch settings for real-time updates)
+  // Check if user has a license (optimized for performance)
   const { data: nodeData, isLoading, refetch } = useReadContract({
     address: CONTRACTS.HOOK,
     abi: HOOK_ABI,
     functionName: 'getENSNodeForAddress',
     args: address ? [address] : undefined,
     query: {
-      staleTime: 2000, // 2s - very fresh for instant updates
-      gcTime: 15000, // 15s cache window
-      retry: 3,
-      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
-      refetchInterval: 3000, // Auto-refetch every 3s for real-time license updates
-      refetchIntervalInBackground: false,
+      enabled: !!address, // Only fetch when address exists
+      staleTime: 60000, // 60s - Increased from 2s to reduce refetches
+      gcTime: 300000, // 5min - Better caching
+      retry: 1, // Reduced from 3 for faster failure
+      retryDelay: 1000, // Fixed delay
+      refetchOnWindowFocus: false, // Disabled for performance
+      refetchOnReconnect: true,
+      // Removed aggressive 3s auto-refetch interval
     },
   });
 
-  // Force refetch when address changes
+  // Force refetch when address changes (optimized)
   useEffect(() => {
     if (address) {
       refetch();
-      // Invalidate and clear cache for clean fresh start
-      queryClient.removeQueries({
-        queryKey: ['readContract'],
-      });
     }
-  }, [address, refetch, queryClient]);
+  }, [address, refetch]);
 
   // Watch for license data and sync state
   useEffect(() => {
@@ -61,61 +57,79 @@ export default function TradingPage() {
 
   if (!isConnected) {
     return (
-      <div className="container mx-auto p-8 text-center">
-        <h1 className="text-4xl font-bold mb-4">Trading Interface</h1>
-        <p className="text-xl text-gray-600">Please connect your wallet to continue</p>
+      <div className="container mx-auto p-8 text-center animate-fade-in">
+        <div className="max-w-2xl mx-auto py-20">
+          <h1 className="text-5xl font-bold mb-6">Trading Interface</h1>
+          <p className="text-xl text-gray-400 mb-8">Connect your wallet to access institutional DeFi trading</p>
+        </div>
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-8 text-center">
-        <h1 className="text-4xl font-bold mb-4">Checking License...</h1>
+      <div className="container mx-auto p-8 text-center animate-fade-in">
+        <div className="max-w-2xl mx-auto py-20">
+          <div className="animate-pulse-glow inline-block px-8 py-4 glass rounded-xl">
+            <h1 className="text-3xl font-bold">Verifying License...</h1>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!licenseNode) {
     return (
-      <div className="container mx-auto p-8">
-        <Alert variant="destructive" className="max-w-2xl mx-auto">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="ml-2">
-            <h3 className="font-semibold mb-2">No Trading License Found</h3>
-            <p>You need a valid trading license to use this pool.</p>
-            <p className="mt-2">Please contact your administrator to request access.</p>
+      <div className="container mx-auto p-8 animate-fade-in">
+        <div className="max-w-2xl mx-auto py-12">
+          <div className="glass rounded-2xl p-10 border border-red-500/30">
+            <div className="flex items-start gap-4 mb-6">
+              <AlertCircle className="h-8 w-8 text-red-500 flex-shrink-0 mt-1" />
+              <div>
+                <h3 className="text-2xl font-bold mb-3">No Trading License Found</h3>
+                <p className="text-gray-400 mb-2">You need a valid trading license to use this pool.</p>
+                <p className="text-gray-400">Please contact your administrator to request access.</p>
+              </div>
+            </div>
             <Button 
               onClick={handleManualRefresh}
               disabled={isLoading}
-              className="mt-4 gap-2"
-              variant="default"
-              size="sm"
+              className="mt-6 glow-blue-sm hover-lift"
+              size="lg"
             >
-              <RotateCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <RotateCcw className={`mr-2 h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
               {isLoading ? 'Checking License...' : 'Refresh License Status'}
             </Button>
-          </AlertDescription>
-        </Alert>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-8">
-      <Alert className="max-w-2xl mx-auto mb-8 border-green-200 bg-green-50">
-        <CheckCircle2 className="h-4 w-4 text-green-600" />
-        <AlertDescription className="ml-2">
-          <span className="font-semibold text-green-900">✓ License Verified</span>
-          <p className="text-sm text-green-800 mt-1">
-            You are authorized to trade on this pool
-          </p>
-        </AlertDescription>
-      </Alert>
+    <div className="container mx-auto p-8 animate-fade-in">
+      {/* License Verified Badge */}
+      <div className="max-w-3xl mx-auto mb-8">
+        <div className="glass rounded-xl p-6 border border-green-500/30 glow-blue-sm">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-6 w-6 text-green-500" />
+            <div>
+              <span className="font-bold text-green-500">License Verified</span>
+              <p className="text-sm text-gray-400 mt-1">
+                You are authorized to trade on this pool
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <Card className="max-w-2xl mx-auto">
+      {/* Trading Card */}
+      <Card className="max-w-3xl mx-auto glass border-dashed-sui glow-blue">
         <CardHeader>
-          <CardTitle>Execute Trade</CardTitle>
+          <div className="flex items-center gap-3">
+            <div className="mono-number text-sm text-gray-500">01</div>
+            <CardTitle className="text-3xl">Execute Trade</CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
           <SwapInterface licenseNode={licenseNode} />

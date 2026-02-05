@@ -1,141 +1,201 @@
 'use client';
 
-import { useState } from 'react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { Activity, Users, DollarSign, TrendingUp, FileText, AlertCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArcKYCModal } from '@/components/ArcKYCModal';
-import { LicenseList } from '@/components/LicenseList';
-import { CONTRACTS } from '@/lib/contracts/addresses';
-import { LICENSE_MANAGER_ABI } from '@/lib/contracts/abis';
-import { toast } from 'sonner';
 
 export default function AdminDashboard() {
-  const { address, isConnected } = useAccount();
-  const [subdomain, setSubdomain] = useState('');
-  const [agentAddress, setAgentAddress] = useState('');
-  const [showKYCModal, setShowKYCModal] = useState(false);
-  const [credentialHash, setCredentialHash] = useState('');
-
-  const { writeContract, data: hash, isPending } = useWriteContract();
-  
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
-  });
-
-  const handleIssueLicense = async () => {
-    if (!subdomain || !agentAddress) {
-      toast.error('Please fill all fields');
-      return;
-    }
-
-    // Open KYC modal
-    setShowKYCModal(true);
+  // Mock data - in production, fetch from blockchain/database
+  const metrics = {
+    totalLicenses: 24,
+    activeTraders: 18,
+    revokedLicenses: 6,
+    tradingVolume: 1245678,
+    monthlyRevenue: 900,
   };
 
-  const handleKYCComplete = async (credential: string) => {
-    setCredentialHash(credential);
-    setShowKYCModal(false);
+  const recentActivity = [
+    { id: 1, type: 'license_issued', trader: 'trader5.fund.eth', time: '2 hours ago' },
+    { id: 2, type: 'trade', trader: 'trader2.fund.eth', amount: '$12,450', time: '3 hours ago' },
+    { id: 3, type: 'payment', trader: 'trader8.fund.eth', amount: '$50', time: '5 hours ago' },
+    { id: 4, type: 'license_revoked', trader: 'trader12.fund.eth', time: '1 day ago' },
+    { id: 5, type: 'trade', trader: 'trader1.fund.eth', amount: '$8,920', time: '1 day ago' },
+    { id: 6, type: 'kyc_verified', trader: 'trader15.fund.eth', time: '2 days ago' },
+    { id: 7, type: 'payment', trader: 'trader3.fund.eth', amount: '$50', time: '2 days ago' },
+    { id: 8, type: 'trade', trader: 'trader7.fund.eth', amount: '$15,300', time: '3 days ago' },
+    { id: 9, type: 'license_issued', trader: 'trader20.fund.eth', time: '3 days ago' },
+    { id: 10, type: 'trade', trader: 'trader4.fund.eth', amount: '$22,100', time: '4 days ago' },
+  ];
 
-    // Issue license on-chain
-    try {
-      writeContract({
-        address: CONTRACTS.LICENSE_MANAGER,
-        abi: LICENSE_MANAGER_ABI,
-        functionName: 'issueLicense',
-        args: [agentAddress as `0x${string}`, subdomain, credential],
-      });
-
-      toast.success('License issuance transaction submitted');
-    } catch (error) {
-      console.error('Error issuing license:', error);
-      toast.error('Failed to issue license');
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'license_issued':
+        return <FileText className="h-4 w-4 text-green-500" />;
+      case 'license_revoked':
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
+      case 'trade':
+        return <TrendingUp className="h-4 w-4 text-blue-500" />;
+      case 'payment':
+        return <DollarSign className="h-4 w-4 text-green-500" />;
+      case 'kyc_verified':
+        return <Users className="h-4 w-4 text-purple-500" />;
+      default:
+        return <Activity className="h-4 w-4 text-gray-500" />;
     }
   };
 
-  if (isSuccess) {
-    toast.success('License issued successfully!');
-    setSubdomain('');
-    setAgentAddress('');
-  }
-
-  if (!isConnected) {
-    return (
-      <div className="container mx-auto p-8 text-center">
-        <h1 className="text-4xl font-bold mb-4">Admin Dashboard</h1>
-        <p className="text-xl text-gray-600">Please connect your wallet to continue</p>
-      </div>
-    );
-  }
+  const getActivityText = (activity: typeof recentActivity[0]) => {
+    switch (activity.type) {
+      case 'license_issued':
+        return `License issued to ${activity.trader}`;
+      case 'license_revoked':
+        return `License revoked for ${activity.trader}`;
+      case 'trade':
+        return `${activity.trader} traded ${activity.amount}`;
+      case 'payment':
+        return `${activity.trader} paid ${activity.amount}`;
+      case 'kyc_verified':
+        return `KYC verified for ${activity.trader}`;
+      default:
+        return activity.trader;
+    }
+  };
 
   return (
-    <div className="container mx-auto p-8">
-      <h1 className="text-4xl font-bold mb-8">License Management</h1>
+    <div className="container mx-auto p-8 animate-fade-in">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-5xl font-bold mb-3">Dashboard</h1>
+        <p className="text-gray-400">Manage licenses and monitor institutional trading activity</p>
+      </div>
 
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Issue New License</CardTitle>
-          <CardDescription>
-            Create a non-transferable trading license for an agent
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Subdomain</label>
-            <Input
-              placeholder="agent1"
-              value={subdomain}
-              onChange={(e) => setSubdomain(e.target.value)}
-              disabled={isPending || isConfirming}
-            />
-            <p className="text-sm text-gray-500 mt-1">
-              Will create: {subdomain || 'agent'}.fund.eth
-            </p>
-          </div>
+      {/* Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        {/* Total Licenses */}
+        <Card className="glass border-dashed-sui hover-lift transform-gpu">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-400">Total Licenses</CardTitle>
+            <FileText className="h-5 w-5 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold mono-number">{metrics.totalLicenses}</div>
+            <p className="text-xs text-gray-500 mt-1">All time issued</p>
+          </CardContent>
+        </Card>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Agent Address</label>
-            <Input
-              placeholder="0x..."
-              value={agentAddress}
-              onChange={(e) => setAgentAddress(e.target.value)}
-              disabled={isPending || isConfirming}
-            />
-          </div>
+        {/* Active Traders */}
+        <Card className="glass border-dashed-sui hover-lift transform-gpu">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-400">Active Traders</CardTitle>
+            <Users className="h-5 w-5 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold mono-number text-green-500">{metrics.activeTraders}</div>
+            <p className="text-xs text-gray-500 mt-1">Currently trading</p>
+          </CardContent>
+        </Card>
 
-          <Button
-            onClick={handleIssueLicense}
-            disabled={isPending || isConfirming || !subdomain || !agentAddress}
-            className="w-full"
-          >
-            {isPending || isConfirming ? 'Issuing License...' : 'Issue License'}
-          </Button>
+        {/* Revoked Licenses */}
+        <Card className="glass border-dashed-sui hover-lift transform-gpu">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-400">Revoked</CardTitle>
+            <AlertCircle className="h-5 w-5 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold mono-number text-red-500">{metrics.revokedLicenses}</div>
+            <p className="text-xs text-gray-500 mt-1">Suspended access</p>
+          </CardContent>
+        </Card>
 
-          {hash && (
-            <div className="text-sm text-gray-600">
-              Transaction:{' '}
-              <a
-                href={`https://sepolia.etherscan.io/tx/${hash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
-              >
-                {hash.slice(0, 10)}...{hash.slice(-8)}
-              </a>
+        {/* Trading Volume */}
+        <Card className="glass border-dashed-sui hover-lift transform-gpu">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-400">Trading Volume</CardTitle>
+            <TrendingUp className="h-5 w-5 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold mono-number">
+              ${(metrics.tradingVolume / 1000).toFixed(0)}K
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <p className="text-xs text-gray-500 mt-1">Total 30d</p>
+          </CardContent>
+        </Card>
 
-      <LicenseList />
+        {/* Monthly Revenue */}
+        <Card className="glass border-dashed-sui hover-lift transform-gpu">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-gray-400">Monthly Revenue</CardTitle>
+            <DollarSign className="h-5 w-5 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold mono-number text-green-500">
+              ${metrics.monthlyRevenue}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">From fees</p>
+          </CardContent>
+        </Card>
+      </div>
 
-      <ArcKYCModal
-        isOpen={showKYCModal}
-        onClose={() => setShowKYCModal(false)}
-        onComplete={handleKYCComplete}
-        userAddress={agentAddress}
-      />
+      {/* Quick Actions & Recent Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Quick Actions */}
+        <Card className="glass border-dashed-sui">
+          <CardHeader>
+            <CardTitle className="text-xl">Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Link href="/admin/licenses/issue">
+              <Button className="w-full glow-blue-sm hover-lift" size="lg">
+                <FileText className="mr-2 h-5 w-5" />
+                Issue New License
+              </Button>
+            </Link>
+            <Link href="/admin/licenses">
+              <Button variant="outline" className="w-full" size="lg">
+                <Users className="mr-2 h-5 w-5" />
+                Manage Licenses
+              </Button>
+            </Link>
+            <Link href="/admin/compliance">
+              <Button variant="outline" className="w-full" size="lg">
+                <FileText className="mr-2 h-5 w-5" />
+                View Reports
+              </Button>
+            </Link>
+            <Link href="/admin/analytics">
+              <Button variant="outline" className="w-full" size="lg">
+                <TrendingUp className="mr-2 h-5 w-5" />
+                Analytics
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Recent Activity Feed */}
+        <Card className="lg:col-span-2 glass border-dashed-sui">
+          <CardHeader>
+            <CardTitle className="text-xl">Recent Activity</CardTitle>
+            <p className="text-sm text-gray-400">Last 10 actions across the platform</p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {recentActivity.map((activity) => (
+                <div
+                  key={activity.id}
+                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-white/5 transition-smooth"
+                >
+                  <div className="mt-0.5">{getActivityIcon(activity.type)}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-200">{getActivityText(activity)}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{activity.time}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

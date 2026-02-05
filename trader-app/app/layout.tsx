@@ -5,11 +5,29 @@ import { Providers } from '@/components/Providers';
 import { Header } from '@/components/Header';
 import { Toaster } from 'sonner';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ 
+  subsets: ['latin'],
+  display: 'swap', // Optimize font loading
+  preload: true,
+});
+
 
 export const metadata: Metadata = {
   title: 'PermitPool - Institutional DeFi Gateway',
   description: 'Non-transferable trading licenses for compliant institutional DeFi',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 5,
+    userScalable: true,
+    viewportFit: 'cover', // For iPhone notch
+  },
+  themeColor: '#1890FF', // Sui blue
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'PermitPool',
+  },
 };
 
 export default function RootLayout({
@@ -18,12 +36,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className} suppressHydrationWarning>
         <Providers>
           <Header />
-          <main className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
-            {children}
+          <main className="min-h-screen bg-black relative overflow-hidden">
+            {/* Radial gradient glow effect like Sui.io */}
+            <div className="fixed inset-0 radial-gradient-blue pointer-events-none" />
+            <div className="relative z-10">
+              {children}
+            </div>
           </main>
           <Toaster position="top-right" />
         </Providers>

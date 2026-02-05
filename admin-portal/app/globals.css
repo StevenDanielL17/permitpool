@@ -2,67 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Sui.io-inspired Design System */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Pure black background like Sui.io */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    /* Card with subtle transparency */
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 5%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Electric blue accent (Sui blue) */
+    --primary: 210 100% 56%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Dark secondary */
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted grays */
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent blue */
+    --accent: 210 100% 56%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Subtle borders */
+    --border: 0 0% 20%;
+    --input: 0 0% 15%;
+    --ring: 210 100% 56%;
 
-    --radius: 0.5rem;
-  }
+    --radius: 0.75rem;
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    /* Custom Sui.io colors */
+    --sui-blue: 210 100% 56%;
+    --sui-teal: 180 100% 50%;
+    --sui-purple: 270 100% 60%;
+    --sui-glow: 210 100% 56%;
   }
 }
 
@@ -70,7 +54,366 @@
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-black text-white;
+    font-feature-settings:
+      "kern" 1,
+      "liga" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Smooth scrolling with GPU acceleration */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Selection styling */
+  ::selection {
+    background-color: hsl(var(--sui-blue) / 0.3);
+    color: white;
+  }
+}
+
+@layer components {
+  /* Sui.io-style glow effect */
+  .glow-blue {
+    box-shadow:
+      0 0 20px hsl(var(--sui-blue) / 0.3),
+      0 0 40px hsl(var(--sui-blue) / 0.2);
+  }
+
+  .glow-blue-sm {
+    box-shadow: 0 0 10px hsl(var(--sui-blue) / 0.2);
+  }
+
+  /* Dashed border like Sui.io */
+  .border-dashed-sui {
+    border: 1px dashed hsl(var(--border));
+  }
+
+  /* Glass morphism effect */
+  .glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Technical monospace numbers */
+  .mono-number {
+    font-family:
+      "SF Mono", "Monaco", "Inconsolata", "Fira Code", "Droid Sans Mono",
+      monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--sui-blue)),
+      hsl(var(--sui-teal))
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Radial gradient background */
+  .radial-gradient-blue {
+    background: radial-gradient(
+      circle at center,
+      hsl(var(--sui-blue) / 0.15) 0%,
+      transparent 70%
+    );
+  }
+}
+
+@layer utilities {
+  /* GPU-accelerated transforms */
+  .transform-gpu {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+
+  /* Smooth transitions */
+  .transition-smooth {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Hover lift effect */
+  .hover-lift {
+    transition:
+      transform 0.3s ease,
+      box-shadow 0.3s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 20px hsl(var(--sui-blue) / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px hsl(var(--sui-blue) / 0.5);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* ============================================
+   MOBILE RESPONSIVE DESIGN
+   ============================================ */
+
+/* Mobile-first approach - Base styles for mobile */
+@layer utilities {
+  /* Safe padding for mobile notches and rounded corners */
+  .safe-padding {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Touch-friendly tap targets (minimum 44x44px) */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Prevent text selection on interactive elements */
+  .no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Mobile: 320px - 640px */
+@media (max-width: 640px) {
+  /* Typography scaling */
+  h1, .text-5xl, .text-6xl, .text-7xl, .text-8xl {
+    font-size: clamp(2rem, 8vw, 3rem) !important;
+    line-height: 1.2 !important;
+  }
+
+  h2, .text-4xl {
+    font-size: clamp(1.5rem, 6vw, 2rem) !important;
+  }
+
+  h3, .text-3xl {
+    font-size: clamp(1.25rem, 5vw, 1.75rem) !important;
+  }
+
+  /* Container padding */
+  .container {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  /* Card spacing */
+  .glass, [class*="Card"] {
+    margin-bottom: 1rem;
+  }
+
+  /* Grid adjustments */
+  .grid {
+    gap: 1rem !important;
+  }
+
+  /* Table responsiveness */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  /* Button sizing */
+  button, .btn {
+    padding: 0.75rem 1.5rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  /* Input fields */
+  input, select, textarea {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+  }
+
+  /* Modal/Dialog full screen on mobile */
+  [role="dialog"], .modal {
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  /* Navigation - Stack vertically */
+  nav {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Hide desktop-only elements */
+  .hidden-mobile {
+    display: none !important;
+  }
+
+  /* Reduce glow effects on mobile for performance */
+  .glow-blue {
+    box-shadow: 0 0 10px hsl(var(--sui-blue) / 0.2) !important;
+  }
+
+  .glow-blue-sm {
+    box-shadow: 0 0 5px hsl(var(--sui-blue) / 0.15) !important;
+  }
+
+  /* Reduce backdrop blur for performance */
+  .glass {
+    backdrop-filter: blur(5px) !important;
+    -webkit-backdrop-filter: blur(5px) !important;
+  }
+}
+
+/* Tablet: 641px - 1024px */
+@media (min-width: 641px) and (max-width: 1024px) {
+  /* Typography */
+  h1, .text-7xl, .text-8xl {
+    font-size: clamp(3rem, 6vw, 4rem) !important;
+  }
+
+  /* Container */
+  .container {
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+  }
+
+  /* Grid columns - 2 columns on tablet */
+  .grid-cols-3, .grid-cols-4, .grid-cols-5 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Landscape mobile phones */
+@media (max-width: 896px) and (orientation: landscape) {
+  /* Reduce vertical spacing */
+  .py-8, .py-20 {
+    padding-top: 2rem !important;
+    padding-bottom: 2rem !important;
+  }
+
+  /* Compact header */
+  header {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets */
+  button, a, input, select {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Remove hover effects on touch devices */
+  .hover-lift:hover {
+    transform: none !important;
+  }
+
+  /* Tap highlight */
+  * {
+    -webkit-tap-highlight-color: hsl(var(--sui-blue) / 0.2);
+  }
+}
+
+/* High DPI screens (Retina) */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Sharper borders */
+  .glass, .border-dashed-sui {
+    border-width: 0.5px;
+  }
+}
+
+/* Dark mode safe (already dark, but ensure consistency) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .hover-lift:hover {
+    transform: none !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  .glass {
+    background: white !important;
+    color: black !important;
+    border: 1px solid black !important;
+  }
+
+  .gradient-text {
+    -webkit-text-fill-color: black !important;
+  }
+
+  button, .glow-blue, .glow-blue-sm {
+    box-shadow: none !important;
+  }
+}
+
+/* Extra small devices (< 375px) */
+@media (max-width: 374px) {
+  /* Even smaller typography */
+  h1, .text-5xl, .text-6xl, .text-7xl, .text-8xl {
+    font-size: 1.75rem !important;
+  }
+
+  /* Tighter spacing */
+  .container {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  /* Smaller buttons */
+  button {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.8125rem !important;
   }
 }
