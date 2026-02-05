@@ -41,6 +41,14 @@ interface IResolver {
     function setText(bytes32 node, string calldata key, string calldata value) external;
 }
 
+/// @notice PermitPoolHook interface for license registration
+interface IPermitPoolHook {
+    /// @notice Register an ENS license node for an address
+    /// @param licensee The address receiving the license
+    /// @param node The ENS node being assigned
+    function registerLicenseNode(address licensee, bytes32 node) external;
+}
+
 // ============================================
 // MAIN CONTRACT
 // ============================================
@@ -58,6 +66,9 @@ contract LicenseManager {
     
     /// @notice ENS Public Resolver contract
     IResolver public immutable resolver;
+    
+    /// @notice PermitPoolHook contract for license registration
+    IPermitPoolHook public immutable permitPoolHook;
     
     /// @notice Parent ENS node (e.g., namehash of "fund.eth")
     bytes32 public immutable parentNode;
@@ -126,21 +137,25 @@ contract LicenseManager {
     /// @notice Initializes the LicenseManager
     /// @param _nameWrapper ENS NameWrapper contract address
     /// @param _resolver ENS Public Resolver contract address
+    /// @param _permitPoolHook PermitPoolHook contract address
     /// @param _parentNode Parent ENS node (e.g., namehash of "fund.eth")
     /// @param _admin Initial admin address
     constructor(
         address _nameWrapper,
         address _resolver,
+        address _permitPoolHook,
         bytes32 _parentNode,
         address _admin
     ) {
         // Validate inputs
         if (_nameWrapper == address(0)) revert InvalidAddress();
         if (_resolver == address(0)) revert InvalidAddress();
+        if (_permitPoolHook == address(0)) revert InvalidAddress();
         if (_admin == address(0)) revert InvalidAddress();
         
         nameWrapper = INameWrapper(_nameWrapper);
         resolver = IResolver(_resolver);
+        permitPoolHook = IPermitPoolHook(_permitPoolHook);
         parentNode = _parentNode;
         admin = _admin;
     }
@@ -191,6 +206,9 @@ contract LicenseManager {
             fusesToBurn,
             uint64(0) // No expiration
         );
+        
+        // Register the license node in the hook for quick lookup
+        permitPoolHook.registerLicenseNode(licensee, node);
         
         // Store Arc DID credential in ENS text records
         resolver.setText(node, ARC_CREDENTIAL_KEY, arcCredentialHash);

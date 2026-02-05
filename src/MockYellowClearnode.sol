@@ -12,5 +12,18 @@ contract MockYellowClearnode {
         return active[sessionId];
     }
     
-    function settle(bytes32) external {}
+    function settleSession(bytes32) external {}
+
+    function getSessionExpiry(bytes32) external pure returns (uint256) {
+        return 0;
+    }
+
+    function createSession(
+        address[] calldata participants,
+        address token,
+        uint256 amount,
+        uint256 duration
+    ) external returns (bytes32) {
+        return keccak256(abi.encodePacked(participants, token, amount, duration));
+    }
 }

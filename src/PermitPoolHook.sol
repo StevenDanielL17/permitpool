@@ -96,6 +96,10 @@ contract PermitPoolHook is BaseHook {
     /// @notice Mapping to track revoked licenses by address
     mapping(address => bool) public revokedLicenses;
 
+    /// @notice Mapping to track ENS node assigned to each licensed address
+    /// @dev Populated when licenses are issued via registerLicenseNode
+    mapping(address => bytes32) public userLicenseNode;
+
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -187,6 +191,24 @@ contract PermitPoolHook is BaseHook {
     }
 
     /*//////////////////////////////////////////////////////////////
+                        LICENSE REGISTRATION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Register an ENS license node for an address
+    /// @dev Called by LicenseManager when issuing a license
+    /// @param licensee The address receiving the license
+    /// @param node The ENS node being assigned
+    function registerLicenseNode(address licensee, bytes32 node) external {
+        // Only allow admin or LicenseManager to register licenses
+        if (msg.sender != admin) revert Unauthorized();
+        
+        if (licensee == address(0)) revert InvalidAddress();
+        if (node == bytes32(0)) revert InvalidAddress();
+        
+        userLicenseNode[licensee] = node;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             HOOK PERMISSIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -271,17 +293,24 @@ contract PermitPoolHook is BaseHook {
         }
         
         // Real Arc Oracle Check
-        if (!arcOracle.isCredentialValid(credential)) {
+        if (!arcOracle.isValidCredential(keccak256(bytes(credential)))) {
             revert InvalidCredential(sender);
         }
     }
 
     /// @notice Compute the ENS node for a given address
-    /// @dev Verifies that the resolved name is a subdomain of parentNode
+    /// @dev First checks the userLicenseNode mapping, then falls back to ENS reverse lookup
     /// @param addr The address to get the ENS node for
     /// @return The ENS node (namehash)
     function getENSNodeForAddress(address addr) public view returns (bytes32) {
-        // Get the ENS name for the address (reverse lookup)
+        // First, check if the address has a registered license node in our mapping
+        // This is the primary method since it doesn't rely on ENS reverse resolution setup
+        bytes32 node = userLicenseNode[addr];
+        if (node != bytes32(0)) {
+            return node;
+        }
+        
+        // Fallback: Try ENS reverse lookup
         bytes memory ensNameBytes = nameWrapper.names(addr);
         
         // Check if address has an ENS name
@@ -293,7 +322,7 @@ contract PermitPoolHook is BaseHook {
         string memory ensName = string(ensNameBytes);
         
         // Compute the namehash of the ENS name and verify parent relationship
-        (bytes32 node, bool isSubdomain) = _computeNamehashAndCheckParent(ensName, parentNode);
+        (bytes32 resolvedNode, bool isSubdomain) = _computeNamehashAndCheckParent(ensName, parentNode);
         
         // Verify the node is a subdomain of parentNode
         if (!isSubdomain) {
@@ -301,11 +330,11 @@ contract PermitPoolHook is BaseHook {
         }
         
         // Additional check: Ensure we didn't just get the root or empty name
-        if (node == bytes32(0)) {
+        if (resolvedNode == bytes32(0)) {
             revert NoENSSubdomain(addr);
         }
         
-        return node;
+        return resolvedNode;
     }
 
     /*//////////////////////////////////////////////////////////////

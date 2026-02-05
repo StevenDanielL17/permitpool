@@ -51,6 +51,14 @@ contract MockResolver {
     }
 }
 
+contract MockPermitPoolHook {
+    mapping(address => bytes32) public userLicenseNode;
+    
+    function registerLicenseNode(address licensee, bytes32 node) external {
+        userLicenseNode[licensee] = node;
+    }
+}
+
 /*//////////////////////////////////////////////////////////////
                          TEST CONTRACT
 //////////////////////////////////////////////////////////////*/
@@ -59,6 +67,7 @@ contract LicenseManagerTest is Test {
     LicenseManager public manager;
     MockNameWrapper public nameWrapper;
     MockResolver public resolver;
+    MockPermitPoolHook public hook;
     
     address public admin = address(0xAD);
     address public user = address(0x1);
@@ -69,10 +78,12 @@ contract LicenseManagerTest is Test {
     function setUp() public {
         nameWrapper = new MockNameWrapper();
         resolver = new MockResolver();
+        hook = new MockPermitPoolHook();
         
         manager = new LicenseManager(
             address(nameWrapper),
             address(resolver),
+            address(hook),
             parentNode,
             admin
         );

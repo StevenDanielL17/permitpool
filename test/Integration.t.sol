@@ -118,9 +118,6 @@ contract IntegrationTest is Test, Deployers {
         parentNode = permitpoolNode;
         
         vm.prank(admin);
-        licenseManager = new LicenseManager(address(nameWrapper), address(textResolver), parentNode, admin);
-        
-        vm.prank(admin);
         paymentManager = new PaymentManager(address(clearnode), admin);
         
         uint160 flags = uint160(Hooks.BEFORE_SWAP_FLAG);
@@ -148,6 +145,9 @@ contract IntegrationTest is Test, Deployers {
             address(arcOracle),
             address(paymentManager)
         );
+        
+        vm.prank(admin);
+        licenseManager = new LicenseManager(address(nameWrapper), address(textResolver), address(hook), parentNode, admin);
         require(address(hook) == hookAddress, "Hook address mismatch");
         
         (currency0, currency1) = deployMintAndApprove2Currencies();
@@ -176,8 +176,8 @@ contract IntegrationTest is Test, Deployers {
     function test_EndToEnd_LicenseFlow() public {
         address user = address(swapRouter);
         
-        MockERC20(Currency.unwrap(currency0)).mint(alice, 100 ether);
-        MockERC20(Currency.unwrap(currency1)).mint(alice, 100 ether);
+        deal(Currency.unwrap(currency0), alice, 100 ether);
+        deal(Currency.unwrap(currency1), alice, 100 ether);
         
         vm.startPrank(alice);
         IERC20(Currency.unwrap(currency0)).approve(address(swapRouter), type(uint256).max);

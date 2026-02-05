@@ -2,13 +2,13 @@
 pragma solidity ^0.8.26;
 
 contract MockArcVerifier {
-    mapping(string => bool) public validCredentials;
+    mapping(bytes32 => bool) public validCredentials;
 
     function setValid(string calldata jwt) external {
-        validCredentials[jwt] = true;
+        validCredentials[keccak256(bytes(jwt))] = true;
     }
 
-    function verify(string calldata jwt) external view returns (bool) {
-        return validCredentials[jwt];
+    function verifyCredential(bytes32 credentialHash) external view returns (bool) {
+        return validCredentials[credentialHash];
     }
 }

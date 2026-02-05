@@ -15,9 +15,18 @@ interface IYellowClearnode {
     /// @param sessionId The session identifier
     /// @return isActive True if session is active and paid up
     function isSessionActive(bytes32 sessionId) external view returns (bool isActive);
+
+    function getSessionExpiry(bytes32 sessionId) external view returns (uint256);
     
     /// @notice Settles a session (off-chain balance to on-chain)
-    function settle(bytes32 sessionId) external;
+    function settleSession(bytes32 sessionId) external;
+
+    function createSession(
+        address[] calldata participants,
+        address token,
+        uint256 amount,
+        uint256 duration
+    ) external returns (bytes32);
 }
 
 // ============================================
@@ -148,7 +157,7 @@ contract PaymentManager {
     }
     
     function settleSession(bytes32 sessionId) external {
-        clearnode.settle(sessionId);
+        clearnode.settleSession(sessionId);
     }
 }
 

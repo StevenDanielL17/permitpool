@@ -18,8 +18,17 @@ contract MockYellowSession {
     function isSessionActive(bytes32 sessionId) external view returns (bool) {
         return active[sessionId];
     }
-    
-    function settle(bytes32 sessionId) external {}
+    function settleSession(bytes32 sessionId) external {}
+
+    function createSession(
+        address[] calldata participants,
+        address token,
+        uint256 amount,
+        uint256 duration
+    ) external returns (bytes32) {
+        // Simple mock return logic, generating dummy sessionId
+        return keccak256(abi.encodePacked(participants, token, amount, duration, block.timestamp));
+    }
 }
 
 /*//////////////////////////////////////////////////////////////

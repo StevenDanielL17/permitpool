@@ -16,50 +16,39 @@ contract DeployScript is Script {
     // Sepolia addresses (update if needed)
     address constant NAME_WRAPPER = 0x0635513f179D50A207757E05759CbD106d7dFcE8;
     address constant RESOLVER = 0x8FADE66B79cC9f707aB26799354482EB93a5B7dD;
-    // Mock non-zero address to pass basic checks if any
-    address constant POOL_MANAGER = address(0x88); 
-
-    // Parent node for fund.eth (example value)
-    bytes32 constant PARENT_NODE = keccak256(abi.encodePacked(bytes32(0), keccak256("fund")));
-
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
         
+        // Load Real Addresses from Env
+        address poolManager = vm.envAddress("POOL_MANAGER");
+        address yellowClearnode = vm.envAddress("YELLOW_CLEARNODE");
+        address arcVerifierAddr = vm.envAddress("ARC_VERIFIER");
+        bytes32 parentNode = vm.envBytes32("PARENT_NODE");
+
+        require(poolManager != address(0), "POOL_MANAGER not set");
+        require(yellowClearnode != address(0), "YELLOW_CLEARNODE not set");
+        require(arcVerifierAddr != address(0), "ARC_VERIFIER not set");
+        require(parentNode != bytes32(0), "PARENT_NODE not set");
+
         vm.startBroadcast(deployerPrivateKey);
 
-        // 1. Deploy Mocks (Arc & Yellow)
-        MockArcVerifier arcVerifier = new MockArcVerifier();
-        console.log("MockArcVerifier deployed at:", address(arcVerifier));
-
-        MockYellowClearnode clearnode = new MockYellowClearnode();
-        console.log("MockYellowClearnode deployed at:", address(clearnode));
-
-        // 2. Deploy Real Contracts (using Mocks)
-        ArcOracle arcOracle = new ArcOracle(address(arcVerifier));
+        // 1. Deploy Real Contracts
+        ArcOracle arcOracle = new ArcOracle(arcVerifierAddr);
         console.log("ArcOracle deployed at:", address(arcOracle));
 
-        // 3. Deploy LicenseManager
-        LicenseManager licenseManager = new LicenseManager(
-            NAME_WRAPPER,
-            RESOLVER,
-            PARENT_NODE,
-            deployer // admin
-        );
-        console.log("LicenseManager deployed at:", address(licenseManager));
-
-        // 4. Deploy PaymentManager
-        PaymentManager paymentManager = new PaymentManager(address(clearnode), deployer);
+        // 2. Deploy PaymentManager
+        PaymentManager paymentManager = new PaymentManager(yellowClearnode, deployer);
         console.log("PaymentManager deployed at:", address(paymentManager));
 
-        // 5. Deploy PermitPoolHook
+        // 3. Deploy PermitPoolHook first (needed by LicenseManager)
         // Mine a salt that produces a hook address with the correct flags
         uint160 flags = uint160(Hooks.BEFORE_SWAP_FLAG);
         bytes memory constructorArgs = abi.encode(
-            IPoolManager(POOL_MANAGER), 
+            IPoolManager(poolManager), 
             NAME_WRAPPER, 
             RESOLVER, 
-            PARENT_NODE, 
+            parentNode, 
             deployer,
             address(arcOracle),
             address(paymentManager)
@@ -73,10 +62,10 @@ contract DeployScript is Script {
         );
         
         PermitPoolHook hook = new PermitPoolHook{salt: salt}(
-            IPoolManager(POOL_MANAGER),
+            IPoolManager(poolManager),
             NAME_WRAPPER,
             RESOLVER,
-            PARENT_NODE,
+            parentNode,
             deployer,
             address(arcOracle),
             address(paymentManager)
@@ -84,6 +73,16 @@ contract DeployScript is Script {
         
         require(address(hook) == hookAddress, "Hook address mismatch");
         console.log("PermitPoolHook deployed at:", address(hook));
+
+        // 4. Deploy LicenseManager with hook address
+        LicenseManager licenseManager = new LicenseManager(
+            NAME_WRAPPER,
+            RESOLVER,
+            address(hook),
+            parentNode,
+            deployer // admin
+        );
+        console.log("LicenseManager deployed at:", address(licenseManager));
 
         vm.stopBroadcast();
     }
