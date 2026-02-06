@@ -218,45 +218,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="border-t border-white/10 mt-20">
-        <div className="container mx-auto px-6 py-12">
-          <div className="grid md:grid-cols-4 gap-8 max-w-6xl">
-            <div>
-              <div className="text-xl font-bold gradient-text mb-4">PermitPool</div>
-              <p className="text-sm text-gray-500">
-                Institutional DeFi access with compliance built-in
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Product</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link href="/trade" className="hover:text-primary transition-smooth">Trading</Link></li>
-                <li><Link href="/" className="hover:text-primary transition-smooth">Features</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Technology</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li className="hover:text-primary transition-smooth cursor-pointer">Uniswap v4</li>
-                <li className="hover:text-primary transition-smooth cursor-pointer">Arc DID</li>
-                <li className="hover:text-primary transition-smooth cursor-pointer">Yellow Network</li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Built For</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li>ETHOnline 2026</li>
-                <li className="mono-number text-xs text-gray-600">Sepolia Testnet</li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-white/10 mt-12 pt-8 text-center text-sm text-gray-500">
-            <p>© 2026 PermitPool. Built with Uniswap v4, Arc, and Yellow Network.</p>
-            <p className="mt-2 text-xs text-gray-600">Built by <span className="text-primary font-semibold">Steve</span></p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
