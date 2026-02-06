@@ -1,13 +1,48 @@
-lib/
-out/
-cache/
-broadcast/
+# Foundry directories (at root only)
+/lib/
+/out/
+/cache/
+/broadcast/
+
+# Environment files
 .env
+.env.local
 
-# Ignore all markdown files except README.md
-*.md
-!README.md
-
-# Ignore all text files
-*.txt
+# Node modules (each app has its own)
 node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Vercel
+.vercel/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Large/temporary files
+*.log
+deployment_output.log
+output_test.txt
+status.txt
+
+# Do NOT ignore these (important for build):
+# - admin-portal/lib/
+# - trader-app/lib/
+# - vercel.json
+# - tsconfig.json files
