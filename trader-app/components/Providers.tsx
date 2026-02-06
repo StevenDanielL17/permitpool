@@ -11,14 +11,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 60000, // 60s - Increased from 5s to reduce unnecessary refetches
-        gcTime: 300000, // 5min - Increased from 30s for better caching
-        retry: 1, // Reduced from 3 to fail faster and reduce latency
-        retryDelay: 1000, // Fixed 1s delay instead of exponential backoff
-        refetchOnWindowFocus: false, // Disabled to prevent unnecessary refetches
-        refetchOnReconnect: true, // Keep for connection recovery
-        refetchOnMount: false, // Disabled to use cached data on mount
-        networkMode: 'online', // Only fetch when online
+        staleTime: 5000, // 5s - data becomes stale quickly for fresh license checks
+        gcTime: 30000, // 30s - keep in cache
+        retry: 3, // Retry failed requests 3 times
+        retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+        refetchOnWindowFocus: true,
+        refetchOnReconnect: true,
+        refetchOnMount: true,
       },
     },
   }));
@@ -26,7 +25,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>
+        <RainbowKitProvider initialChain={config.chains[0]}>
           {children}
         </RainbowKitProvider>
       </QueryClientProvider>

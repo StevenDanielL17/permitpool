@@ -21,11 +21,16 @@ export default function IssueLicensePage() {
   const [department, setDepartment] = useState('');
   const [showKYCModal, setShowKYCModal] = useState(false);
   const [credentialHash, setCredentialHash] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const { writeContract, data: hash, isPending } = useWriteContract();
+  const { writeContract, data: hash, isPending, reset } = useWriteContract();
   
+  // Non-blocking confirmation watch - runs in background
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
     hash,
+    query: {
+      enabled: !!hash, // Only watch if hash exists
+    }
   });
 
   const handleStartIssuance = async () => {
@@ -47,6 +52,7 @@ export default function IssueLicensePage() {
   const handleKYCComplete = async (credential: string) => {
     setCredentialHash(credential);
     setShowKYCModal(false);
+    setIsProcessing(true);
 
     // Issue license on-chain
     try {
@@ -55,33 +61,48 @@ export default function IssueLicensePage() {
         abi: LICENSE_MANAGER_ABI,
         functionName: 'issueLicense',
         args: [agentAddress as `0x${string}`, subdomain, credential],
+        gas: BigInt(500000),
       });
 
-      toast.success('License issuance transaction submitted! Please confirm in your wallet.');
+      // Transaction submitted successfully - show optimistic success
+      toast.success(`Transaction submitted for ${traderName}! Waiting for blockchain confirmation...`, {
+        duration: 5000,
+      });
+
+      // Reset form immediately (optimistic update - don't wait for confirmation)
+      setTimeout(() => {
+        setSubdomain('');
+        setTraderName('');
+        setAgentAddress('');
+        setMonthlyFee('50');
+        setDepartment('');
+        setIsProcessing(false);
+        reset(); // Reset writeContract state
+      }, 1000);
+
     } catch (error: any) {
       console.error('Error issuing license:', error);
+      setIsProcessing(false);
       
       // Handle specific error types
       if (error?.message?.includes('User rejected') || error?.message?.includes('user rejected')) {
-        toast.error('Transaction rejected. Please try again and approve the transaction in your wallet.');
+        toast.error('Transaction rejected by user.');
       } else if (error?.message?.includes('insufficient funds')) {
-        toast.error('Insufficient funds to complete the transaction. Please add more ETH for gas fees.');
+        toast.error('Insufficient ETH for gas fees.');
       } else if (error?.message?.includes('network')) {
-        toast.error('Network error. Please check your connection and try again.');
+        toast.error('Network error. Please try again.');
       } else {
-        toast.error(`Failed to issue license: ${error?.message || 'Unknown error'}`);
+        toast.error(`Transaction failed: ${error?.message || 'Unknown error'}`);
       }
     }
   };
 
-  if (isSuccess) {
-    toast.success(`License issued successfully to ${traderName}!`);
-    // Reset form
-    setSubdomain('');
-    setTraderName('');
-    setAgentAddress('');
-    setMonthlyFee('50');
-    setDepartment('');
+  // Background notification when transaction confirms
+  if (isSuccess && hash) {
+    toast.success(`✅ License confirmed on blockchain!`, {
+      id: hash, // Prevent duplicate toasts
+      duration: 3000,
+    });
   }
 
   if (!isConnected) {
@@ -151,7 +172,7 @@ export default function IssueLicensePage() {
                 placeholder="John Doe"
                 value={traderName}
                 onChange={(e) => setTraderName(e.target.value)}
-                disabled={isPending || isConfirming}
+                disabled={isProcessing}
                 className="bg-white/5 border-white/10"
               />
             </div>
@@ -165,7 +186,7 @@ export default function IssueLicensePage() {
                 placeholder="trader1"
                 value={subdomain}
                 onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
-                disabled={isPending || isConfirming}
+                disabled={isProcessing}
                 className="bg-white/5 border-white/10"
               />
               <div className="mt-2 p-3 glass rounded-lg border border-primary/30">
@@ -187,7 +208,7 @@ export default function IssueLicensePage() {
                   placeholder="0x..."
                   value={agentAddress}
                   onChange={(e) => setAgentAddress(e.target.value)}
-                  disabled={isPending || isConfirming}
+                  disabled={isProcessing}
                   className="bg-white/5 border-white/10 font-mono"
                 />
               </div>
@@ -203,7 +224,7 @@ export default function IssueLicensePage() {
                 placeholder="50"
                 value={monthlyFee}
                 onChange={(e) => setMonthlyFee(e.target.value)}
-                disabled={isPending || isConfirming}
+                disabled={isProcessing}
                 className="bg-white/5 border-white/10"
               />
               <p className="text-xs text-gray-500 mt-1">Default: $50 USDC per month</p>
@@ -218,7 +239,7 @@ export default function IssueLicensePage() {
                 placeholder="Trading Desk, Hedge Fund, etc."
                 value={department}
                 onChange={(e) => setDepartment(e.target.value)}
-                disabled={isPending || isConfirming}
+                disabled={isProcessing}
                 className="bg-white/5 border-white/10"
               />
             </div>
@@ -227,12 +248,12 @@ export default function IssueLicensePage() {
             <div className="pt-4">
               <Button
                 onClick={handleStartIssuance}
-                disabled={isPending || isConfirming || !subdomain || !agentAddress || !traderName}
+                disabled={isProcessing || !subdomain || !agentAddress || !traderName}
                 className="w-full text-lg py-6 glow-blue-sm hover-lift font-bold"
                 size="lg"
               >
                 <Shield className="mr-2 h-5 w-5" />
-                {isPending || isConfirming ? 'Processing...' : 'Start Arc KYC Verification'}
+                {isProcessing ? 'Processing Transaction...' : 'Start Arc KYC Verification'}
               </Button>
             </div>
 

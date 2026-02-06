@@ -49,6 +49,8 @@ interface IPermitPoolHook {
     function registerLicenseNode(address licensee, bytes32 node) external;
 }
 
+import {ArcOracle} from "./ArcOracle.sol";
+
 // ============================================
 // MAIN CONTRACT
 // ============================================
@@ -69,6 +71,9 @@ contract LicenseManager {
     
     /// @notice PermitPoolHook contract for license registration
     IPermitPoolHook public immutable permitPoolHook;
+
+    /// @notice Arc Oracle for credential verification
+    ArcOracle public immutable arcOracle;
     
     /// @notice Parent ENS node (e.g., namehash of "fund.eth")
     bytes32 public immutable parentNode;
@@ -144,6 +149,7 @@ contract LicenseManager {
         address _nameWrapper,
         address _resolver,
         address _permitPoolHook,
+        address _arcOracle,
         bytes32 _parentNode,
         address _admin
     ) {
@@ -151,11 +157,13 @@ contract LicenseManager {
         if (_nameWrapper == address(0)) revert InvalidAddress();
         if (_resolver == address(0)) revert InvalidAddress();
         if (_permitPoolHook == address(0)) revert InvalidAddress();
+        if (_arcOracle == address(0)) revert InvalidAddress();
         if (_admin == address(0)) revert InvalidAddress();
         
         nameWrapper = INameWrapper(_nameWrapper);
         resolver = IResolver(_resolver);
         permitPoolHook = IPermitPoolHook(_permitPoolHook);
+        arcOracle = ArcOracle(_arcOracle);
         parentNode = _parentNode;
         admin = _admin;
     }
@@ -179,6 +187,11 @@ contract LicenseManager {
     // LICENSE ISSUANCE
     // ============================================
     
+
+    // ============================================
+    // LICENSE ISSUANCE
+    // ============================================
+    
     /// @notice Issues a trading license by creating an ENS subdomain with burned fuses
     /// @param licensee The address to receive the license
     /// @param label The subdomain label (e.g., "alice" for alice.fund.eth)
@@ -193,6 +206,12 @@ contract LicenseManager {
         if (licensee == address(0)) revert InvalidAddress();
         if (bytes(label).length == 0) revert InvalidLabel();
         if (bytes(arcCredentialHash).length == 0) revert InvalidCredentialHash();
+
+        // Verify Arc Credential *BEFORE* issuance
+        // This ensures strictly authenticated users only
+        if (!arcOracle.isValidCredential(keccak256(bytes(arcCredentialHash)))) {
+            revert InvalidCredentialHash();
+        }
         
         // Calculate fuses to burn
         uint32 fusesToBurn = CANNOT_TRANSFER | PARENT_CANNOT_CONTROL;

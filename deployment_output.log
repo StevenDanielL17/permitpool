@@ -1,0 +1,55 @@
+No files changed, compilation skipped
+Traces:
+  [3112139] → new DeployScript@0x9f7cF1d1F558E57ef88a59ac3D47214eF25B6A06
+    └─ ← [Return] 15433 bytes of code
+
+  [2553239] DeployScript::run()
+    ├─ [0] VM::envUint("OWNER_PRIVATE_KEY") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envAddress("OWNER_ADDRESS") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envAddress("POOL_MANAGER") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] VM::envBytes32("PARENT_NODE") [staticcall]
+    │   └─ ← [Return] <env var value>
+    ├─ [0] console::log("Deploying PermitPool with:") [staticcall]
+    │   └─ ← [Stop]
+    ├─ [0] console::log("  Owner:", 0x52b34414Df3e56ae853BC4A0EB653231447C2A36) [staticcall]
+    │   └─ ← [Stop]
+    ├─ [0] console::log("  PoolManager:", 0xE03A1074c86CFeDd5C142C4F04F1a1536e203543) [staticcall]
+    │   └─ ← [Stop]
+    ├─ [0] VM::startBroadcast(<pk>)
+    │   └─ ← [Return]
+    ├─ [118572] → new MockYellowClearnode@0x784cD2f02175ccAbD7ae7d58d0F9a103D56a9683
+    │   └─ ← [Return] 592 bytes of code
+    ├─ [0] console::log("MockYellowClearnode deployed at:", MockYellowClearnode: [0x784cD2f02175ccAbD7ae7d58d0F9a103D56a9683]) [staticcall]
+    │   └─ ← [Stop]
+    ├─ [79535] → new MockArcVerifier@0xDE29F868ac92Cfa4A1A51BA086E83DFd4A395001
+    │   └─ ← [Return] 397 bytes of code
+    ├─ [0] console::log("MockArcVerifier deployed at:", MockArcVerifier: [0xDE29F868ac92Cfa4A1A51BA086E83DFd4A395001]) [staticcall]
+    │   └─ ← [Stop]
+    ├─ [148761] → new ArcOracle@0x6ce066f24883FcB635A89e786Fb27936d86ba16B
+    │   └─ ← [Return] 631 bytes of code
+    ├─ [0] console::log("ArcOracle deployed at:", ArcOracle: [0x6ce066f24883FcB635A89e786Fb27936d86ba16B]) [staticcall]
+    │   └─ ← [Stop]
+    ├─ [322331] → new PaymentManager@0xb535880425a0c87D5155cD4C8E7C03A4598FBD6F
+    │   └─ ← [Return] 1497 bytes of code
+    ├─ [0] console::log("PaymentManager deployed at:", PaymentManager: [0xb535880425a0c87D5155cD4C8E7C03A4598FBD6F]) [staticcall]
+    │   └─ ← [Stop]
+    ├─ [36858] Create2Deployer::create2()
+    │   ├─ [1708] → new <unknown>@0xc247cBbBaAE47Bc53582c2378dC6cb987654B678
+    │   │   └─ ← [Revert] 0xe65af6a0000000000000000000000000c247cbbbaae47bc53582c2378dc6cb987654b678
+    │   └─ ← [Revert] EvmError: Revert
+    └─ ← [Revert] EvmError: Revert
+
+
+
+== Logs ==
+  Deploying PermitPool with:
+    Owner: 0x52b34414Df3e56ae853BC4A0EB653231447C2A36
+    PoolManager: 0xE03A1074c86CFeDd5C142C4F04F1a1536e203543
+  MockYellowClearnode deployed at: 0x784cD2f02175ccAbD7ae7d58d0F9a103D56a9683
+  MockArcVerifier deployed at: 0xDE29F868ac92Cfa4A1A51BA086E83DFd4A395001
+  ArcOracle deployed at: 0x6ce066f24883FcB635A89e786Fb27936d86ba16B
+  PaymentManager deployed at: 0xb535880425a0c87D5155cD4C8E7C03A4598FBD6F
+Error: script failed: <empty revert data>

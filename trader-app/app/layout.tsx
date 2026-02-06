@@ -4,7 +4,7 @@ import './globals.css';
 import { Providers } from '@/components/Providers';
 import { Header } from '@/components/Header';
 import Footer from '@/components/Footer';
-import Dither from '@/components/effects/Dither';
+import LaserFlow from '@/components/effects/LaserFlow';
 import DevToolbar from '@/components/DevToolbar';
 import { Toaster } from 'sonner';
 
@@ -47,15 +47,12 @@ export default function RootLayout({
             {/* Background Effects */}
             <div className="fixed inset-0 pointer-events-none z-0">
               <div className="absolute inset-0 radial-gradient-blue opacity-40 mix-blend-screen" />
-              <Dither
-                waveColor={[0.1, 0.3, 0.6]}
-                waveSpeed={0.05}
-                waveFrequency={1.5}
-                colorNum={4}
-                pixelSize={2}
-                enableMouseInteraction={true} // Allow subtle interaction
-                mouseRadius={0.5}
-                disableAnimation={false}
+              <LaserFlow 
+                color="#FF79C6" 
+                fogIntensity={0.6} 
+                wispDensity={0.8}
+                flowSpeed={0.2} 
+                className="opacity-60"
               />
             </div>
 

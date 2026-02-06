@@ -2,6 +2,8 @@ import WebSocket from "ws";
 import "dotenv/config";
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import { createECDSAMessageSigner } from "@erc7824/nitrolite";
+import * as THREE from 'three'
+
 
 // ---------- MAIN WALLET ----------
 const account = privateKeyToAccount(process.env.PRIVATE_KEY as `0x${string}`);

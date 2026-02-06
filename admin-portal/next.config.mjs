@@ -6,9 +6,6 @@ const nextConfig = {
   // Disable source maps in production for faster builds
   productionBrowserSourceMaps: false,
   
-  // SWC minification (faster than Terser)
-  swcMinify: true,
-  
   // Optimize memory usage
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,

@@ -68,6 +68,7 @@ export function LicenseList() {
         abi: HOOK_ABI,
         functionName: 'revokeLicense',
         args: [license.node],
+        gas: BigInt(300000), // Set reasonable gas limit for revoke operation
       });
 
       toast.success('Revocation transaction submitted');

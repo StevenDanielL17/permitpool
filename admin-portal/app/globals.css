@@ -187,6 +187,21 @@
 }
 
 /* ============================================
+   RAINBOWKIT MODAL FIXES
+   ============================================ */
+
+/* Fix RainbowKit modal text overlap - ONLY fix text, don't move the modal */
+[data-rk] h1,
+[data-rk] h2,
+[data-rk] h3 {
+  font-size: revert !important;
+  line-height: normal !important;
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+}
+
+
+/* ============================================
    MOBILE RESPONSIVE DESIGN
    ============================================ */
 

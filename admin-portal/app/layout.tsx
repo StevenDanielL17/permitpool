@@ -4,7 +4,7 @@ import './globals.css';
 import { Providers } from '@/components/Providers';
 import { Header } from '@/components/Header';
 import Footer from '@/components/Footer';
-import LaserFlow from '@/components/effects/LaserFlow';
+import Dither from '@/components/effects/Dither';
 import DevToolbar from '@/components/DevToolbar';
 import { Toaster } from 'sonner';
 
@@ -47,12 +47,15 @@ export default function RootLayout({
             {/* Background Effects */}
             <div className="fixed inset-0 pointer-events-none z-0">
                <div className="absolute inset-0 radial-gradient-blue opacity-50" />
-               <LaserFlow 
-                 color="#1890FF" 
-                 fogIntensity={0.6} 
-                 wispDensity={0.8}
-                 flowSpeed={0.2} 
-                 className="opacity-60"
+               <Dither
+                 waveColor={[0.05, 0.15, 0.25]}
+                 waveSpeed={0.05}
+                 waveFrequency={1.5}
+                 colorNum={4}
+                 pixelSize={2}
+                 enableMouseInteraction={true}
+                 mouseRadius={0.5}
+                 disableAnimation={false}
                />
             </div>
             

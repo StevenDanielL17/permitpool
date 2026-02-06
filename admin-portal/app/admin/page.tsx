@@ -1,11 +1,20 @@
 'use client';
 
-import { Activity, Users, DollarSign, TrendingUp, FileText, AlertCircle } from 'lucide-react';
+import { Activity, Users, DollarSign, TrendingUp, FileText, AlertCircle, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { useWalletPersistence } from '@/hooks/useWalletPersistence';
+import { useAdminRole } from '@/hooks/useAdminRole';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 export default function AdminDashboard() {
+  // Wallet persistence - auto-reconnects on page load
+  const { isReconnecting } = useWalletPersistence();
+  
+  // Admin role detection
+  const { isAdmin, isConnected, address } = useAdminRole();
+
   // Mock data - in production, fetch from blockchain/database
   const metrics = {
     totalLicenses: 24,
@@ -61,6 +70,54 @@ export default function AdminDashboard() {
         return activity.trader;
     }
   };
+
+  // Show loading state while reconnecting
+  if (isReconnecting) {
+    return (
+      <div className="container mx-auto p-8 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2">Reconnecting Wallet...</h2>
+          <p className="text-gray-400">Restoring your previous session</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show connect wallet prompt if not connected
+  if (!isConnected) {
+    return (
+      <div className="container mx-auto p-8 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center glass rounded-xl p-12 border-dashed-sui max-w-lg">
+          <AlertCircle className="h-16 w-16 text-primary mx-auto mb-6" />
+          <h2 className="text-3xl font-bold mb-4">Connect Your Wallet</h2>
+          <p className="text-gray-400 mb-8">
+            Please connect your admin wallet to access the dashboard
+          </p>
+          <ConnectButton />
+        </div>
+      </div>
+    );
+  }
+
+  // Show access denied if not admin
+  if (!isAdmin) {
+    return (
+      <div className="container mx-auto p-8 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center glass rounded-xl p-12 border-dashed-sui max-w-lg">
+          <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-6" />
+          <h2 className="text-3xl font-bold mb-4">Access Denied</h2>
+          <p className="text-gray-400 mb-4">
+            This wallet is not authorized as an administrator.
+          </p>
+          <p className="text-sm text-gray-500 font-mono mb-8">
+            Connected: {address?.slice(0, 6)}...{address?.slice(-4)}
+          </p>
+          <ConnectButton />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-8 animate-fade-in">
