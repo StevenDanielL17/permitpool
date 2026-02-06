@@ -17,28 +17,35 @@ contract DeployScript is Script {
     address constant NAME_WRAPPER = 0x0635513f179D50A207757E05759CbD106d7dFcE8;
     address constant RESOLVER = 0x8FADE66B79cC9f707aB26799354482EB93a5B7dD;
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address deployer = vm.addr(deployerPrivateKey);
+        uint256 deployerPrivateKey = vm.envUint("OWNER_PRIVATE_KEY");
+        address deployer = vm.envAddress("OWNER_ADDRESS");
         
-        // Load Real Addresses from Env
+        // Load Addresses from Env
         address poolManager = vm.envAddress("POOL_MANAGER");
-        address yellowClearnode = vm.envAddress("YELLOW_CLEARNODE");
-        address arcVerifierAddr = vm.envAddress("ARC_VERIFIER");
         bytes32 parentNode = vm.envBytes32("PARENT_NODE");
 
+        console.log("Deploying PermitPool with:");
+        console.log("  Owner:", deployer);
+        console.log("  PoolManager:", poolManager);
+
         require(poolManager != address(0), "POOL_MANAGER not set");
-        require(yellowClearnode != address(0), "YELLOW_CLEARNODE not set");
-        require(arcVerifierAddr != address(0), "ARC_VERIFIER not set");
         require(parentNode != bytes32(0), "PARENT_NODE not set");
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // 1. Deploy Real Contracts
-        ArcOracle arcOracle = new ArcOracle(arcVerifierAddr);
+        // 0. Deploy Mock Contracts (since they're marked as 0x... in .env)
+        MockYellowClearnode yellowClearnodeInstance = new MockYellowClearnode();
+        console.log("MockYellowClearnode deployed at:", address(yellowClearnodeInstance));
+        
+        MockArcVerifier arcVerifierInstance = new MockArcVerifier();
+        console.log("MockArcVerifier deployed at:", address(arcVerifierInstance));
+
+        // 1. Deploy ArcOracle
+        ArcOracle arcOracle = new ArcOracle(address(arcVerifierInstance));
         console.log("ArcOracle deployed at:", address(arcOracle));
 
         // 2. Deploy PaymentManager
-        PaymentManager paymentManager = new PaymentManager(yellowClearnode, deployer);
+        PaymentManager paymentManager = new PaymentManager(address(yellowClearnodeInstance), deployer);
         console.log("PaymentManager deployed at:", address(paymentManager));
 
         // 3. Deploy PermitPoolHook first (needed by LicenseManager)
