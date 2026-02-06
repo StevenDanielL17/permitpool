@@ -61,7 +61,6 @@ export default function IssueLicensePage() {
         abi: LICENSE_MANAGER_ABI,
         functionName: 'issueLicense',
         args: [agentAddress as `0x${string}`, subdomain, credential],
-        gas: BigInt(500000),
       });
 
       // Transaction submitted successfully - show optimistic success

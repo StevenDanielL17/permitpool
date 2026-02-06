@@ -16,6 +16,9 @@ contract DeployScript is Script {
     // Sepolia addresses (update if needed)
     address constant NAME_WRAPPER = 0x0635513f179D50A207757E05759CbD106d7dFcE8;
     address constant RESOLVER = 0x8FADE66B79cC9f707aB26799354482EB93a5B7dD;
+    // Safe Singleton Factory (CREATE2 Deployer) used by forge script
+    address constant CREATE2_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
+
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("OWNER_PRIVATE_KEY");
         address deployer = vm.envAddress("OWNER_ADDRESS");
@@ -62,7 +65,7 @@ contract DeployScript is Script {
         );
 
         (address hookAddress, bytes32 salt) = HookMiner.find(
-            deployer,
+            CREATE2_DEPLOYER,
             flags,
             type(PermitPoolHook).creationCode,
             constructorArgs
@@ -91,6 +94,11 @@ contract DeployScript is Script {
             deployer // admin
         );
         console.log("LicenseManager deployed at:", address(licenseManager));
+
+        // 5. Connect Hook to LicenseManager (Fix permissions)
+        console.log("Setting LicenseManager on Hook...");
+        hook.setLicenseManager(address(licenseManager));
+        console.log("LicenseManager set on Hook successfully");
 
         vm.stopBroadcast();
     }

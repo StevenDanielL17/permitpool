@@ -35,8 +35,9 @@ export function ArcKYCModal({ isOpen, onClose, onComplete, userAddress }: ArcKYC
 
     // Simulate KYC processing
     setTimeout(() => {
-      // Generate mock credential
-      const mockCredential = `arc-did-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      // Use fixed credential to match on-chain whitelist
+      // This prevents "Gas Limit Too High" errors caused by reverts
+      const mockCredential = "VALID_ARC_TEST_CREDENTIAL";
       setCredential(mockCredential);
       setStep('complete');
     }, 2000);

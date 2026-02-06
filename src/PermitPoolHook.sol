@@ -98,7 +98,12 @@ contract PermitPoolHook is BaseHook {
 
     /// @notice Mapping to track ENS node assigned to each licensed address
     /// @dev Populated when licenses are issued via registerLicenseNode
+    /// @notice Mapping to track ENS node assigned to each licensed address
+    /// @dev Populated when licenses are issued via registerLicenseNode
     mapping(address => bytes32) public userLicenseNode;
+
+    /// @notice Address of the LicenseManager contract
+    address public licenseManager;
 
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
@@ -154,6 +159,10 @@ contract PermitPoolHook is BaseHook {
     /// @param newAdmin The new admin address
     event AdminUpdated(address indexed oldAdmin, address indexed newAdmin);
 
+    /// @notice Emitted when the license manager address is updated
+    /// @param newLicenseManager The new license manager address
+    event LicenseManagerUpdated(address indexed newLicenseManager);
+
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -194,13 +203,22 @@ contract PermitPoolHook is BaseHook {
                         LICENSE REGISTRATION
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Set or update the LicenseManager contract address
+    /// @param _licenseManager The address of the LicenseManager contract
+    function setLicenseManager(address _licenseManager) external {
+        if (msg.sender != admin) revert Unauthorized();
+        if (_licenseManager == address(0)) revert InvalidAddress();
+        licenseManager = _licenseManager;
+        emit LicenseManagerUpdated(_licenseManager);
+    }
+
     /// @notice Register an ENS license node for an address
     /// @dev Called by LicenseManager when issuing a license
     /// @param licensee The address receiving the license
     /// @param node The ENS node being assigned
     function registerLicenseNode(address licensee, bytes32 node) external {
-        // Only allow admin or LicenseManager to register licenses
-        if (msg.sender != admin) revert Unauthorized();
+        // Allow admin or LicenseManager to register licenses
+        if (msg.sender != admin && msg.sender != licenseManager) revert Unauthorized();
         
         if (licensee == address(0)) revert InvalidAddress();
         if (node == bytes32(0)) revert InvalidAddress();

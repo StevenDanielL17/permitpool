@@ -11,13 +11,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 5000, // 5s - data becomes stale quickly for fresh license checks
-        gcTime: 30000, // 30s - keep in cache
-        retry: 3, // Retry failed requests 3 times
+        staleTime: 1000, // 1s - High frequency data for low latency feel
+        gcTime: 30000, 
+        retry: 3, 
         retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
         refetchOnWindowFocus: true,
         refetchOnReconnect: true,
         refetchOnMount: true,
+        refetchInterval: 2000, // Polling every 2s for live price/balance updates
       },
     },
   }));
