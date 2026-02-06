@@ -17,15 +17,17 @@
     "build:trader": "npm run build --workspace=trader-app",
     "lint": "npm run lint --workspaces",
     "type-check": "npm run type-check --workspaces",
-    "setup:circle-secret": "ts-node scripts/setup-circle-entity-secret.ts"
+    "setup:circle-secret": "node scripts/generate-circle-secret.js"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
   },
   "dependencies": {
+    "@circle-fin/developer-controlled-wallets": "^10.1.0",
     "@erc7824/nitrolite": "^0.5.3",
     "dotenv": "^17.2.4",
     "ethers": "^6.16.0",
