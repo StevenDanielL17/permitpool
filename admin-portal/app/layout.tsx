@@ -5,6 +5,7 @@ import { Providers } from '@/components/Providers';
 import { Header } from '@/components/Header';
 import Footer from '@/components/Footer';
 import LaserFlow from '@/components/effects/LaserFlow';
+import DevToolbar from '@/components/DevToolbar';
 import { Toaster } from 'sonner';
 
 const inter = Inter({ 
@@ -60,6 +61,7 @@ export default function RootLayout({
             </div>
           </main>
           <Footer />
+          <DevToolbar />
           <Toaster position="top-right" />
         </Providers>
       </body>

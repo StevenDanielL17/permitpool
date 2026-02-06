@@ -5,6 +5,7 @@ import { Providers } from '@/components/Providers';
 import { Header } from '@/components/Header';
 import Footer from '@/components/Footer';
 import Dither from '@/components/effects/Dither';
+import DevToolbar from '@/components/DevToolbar';
 import { Toaster } from 'sonner';
 
 const inter = Inter({ 
@@ -63,6 +64,7 @@ export default function RootLayout({
             </div>
           </main>
           <Footer />
+          <DevToolbar />
           <Toaster position="top-right" />
         </Providers>
       </body>
