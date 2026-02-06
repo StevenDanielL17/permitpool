@@ -4,6 +4,7 @@ import './globals.css';
 import { Providers } from '@/components/Providers';
 import { Header } from '@/components/Header';
 import Footer from '@/components/Footer';
+import Dither from '@/components/effects/Dither';
 import { Toaster } from 'sonner';
 
 const inter = Inter({ 
@@ -42,8 +43,21 @@ export default function RootLayout({
         <Providers>
           <Header />
           <main className="min-h-screen bg-black relative overflow-hidden">
-            {/* Radial gradient glow effect like Sui.io */}
-            <div className="fixed inset-0 radial-gradient-blue pointer-events-none" />
+            {/* Background Effects */}
+            <div className="fixed inset-0 pointer-events-none z-0">
+              <div className="absolute inset-0 radial-gradient-blue opacity-40 mix-blend-screen" />
+              <Dither
+                waveColor={[0.1, 0.3, 0.6]}
+                waveSpeed={0.05}
+                waveFrequency={1.5}
+                colorNum={4}
+                pixelSize={2}
+                enableMouseInteraction={true} // Allow subtle interaction
+                mouseRadius={0.5}
+                disableAnimation={false}
+              />
+            </div>
+
             <div className="relative z-10">
               {children}
             </div>

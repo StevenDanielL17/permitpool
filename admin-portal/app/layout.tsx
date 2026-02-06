@@ -4,6 +4,7 @@ import './globals.css';
 import { Providers } from '@/components/Providers';
 import { Header } from '@/components/Header';
 import Footer from '@/components/Footer';
+import LaserFlow from '@/components/effects/LaserFlow';
 import { Toaster } from 'sonner';
 
 const inter = Inter({ 
@@ -42,8 +43,18 @@ export default function RootLayout({
         <Providers>
           <Header />
           <main className="min-h-screen bg-black relative overflow-hidden">
-            {/* Radial gradient glow effect like Sui.io */}
-            <div className="fixed inset-0 radial-gradient-blue pointer-events-none" />
+            {/* Background Effects */}
+            <div className="fixed inset-0 pointer-events-none z-0">
+               <div className="absolute inset-0 radial-gradient-blue opacity-50" />
+               <LaserFlow 
+                 color="#1890FF" 
+                 fogIntensity={0.6} 
+                 wispDensity={0.8}
+                 flowSpeed={0.2} 
+                 className="opacity-60"
+               />
+            </div>
+            
             <div className="relative z-10">
               {children}
             </div>
