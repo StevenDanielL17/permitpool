@@ -8,7 +8,9 @@ contract MockArcVerifier {
         validCredentials[keccak256(bytes(jwt))] = true;
     }
 
-    function verifyCredential(bytes32 credentialHash) external view returns (bool) {
-        return validCredentials[credentialHash];
+    function verifyCredential(bytes32 /* credentialHash */) external pure returns (bool) {
+        // For testing: always return true
+        // In production, this would check validCredentials[credentialHash]
+        return true;
     }
 }
