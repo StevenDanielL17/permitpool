@@ -16,7 +16,8 @@
     "build:admin": "npm run build --workspace=admin-portal",
     "build:trader": "npm run build --workspace=trader-app",
     "lint": "npm run lint --workspaces",
-    "type-check": "npm run type-check --workspaces"
+    "type-check": "npm run type-check --workspaces",
+    "setup:circle-secret": "ts-node scripts/setup-circle-entity-secret.ts"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
