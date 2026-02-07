@@ -280,20 +280,25 @@ contract PermitPoolHook is BaseHook {
         bytes calldata /* hookData */
     ) internal override returns (bytes4, BeforeSwapDelta, uint24) {
         
-        // CHECK: Does trader have valid license from PermitPool?
-        // We cast the address to the interface - ensure licenseManager is set!
-        if (licenseManager == address(0)) {
-            revert InvalidAddress(); // Critical failure if manager not set
-        }
-
-        bool hasLicense = ILicenseManager(licenseManager).hasValidLicense(sender);
+        // 1. ENS Reverse Lookup + Parent Node Validation
+        // This function also validates the parent node relationship (permitpool.eth)
+        bytes32 node = getEnsNodeForAddress(sender);
         
-        if (!hasLicense) {
-            revert UnlicensedTrader(sender);
-        }
+        // 2. Fuse Verification
+        // Ensures the name is "soulbound" (CANNOT_TRANSFER | PARENT_CANNOT_CONTROL)
+        _verifyFuses(node, sender);
         
-        // License valid - allow swap
-        emit LicenseChecked(sender, bytes32(0), true); // Emitting verified event
+        // 3. DID Resolution (Arc Check)
+        // Verifies the Arc credential in the text record against the Oracle
+        _verifyArcCredential(node, sender);
+        
+        // 4. Blacklist Check (Revocation)
+        // Checks if the license has been administratively revoked
+        _checkRevocation(sender);
+        
+        // 5. Execution
+        // All checks passed - allow swap
+        emit LicenseChecked(sender, node, true);
         
         return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
     }

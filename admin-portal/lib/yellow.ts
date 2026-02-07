@@ -1,18 +1,21 @@
 import { NitroliteClient, WalletStateSigner } from '@erc7824/nitrolite';
 import { createPublicClient, createWalletClient, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { sepolia } from 'viem/chains';
+import { mainnet, sepolia, foundry } from 'viem/chains';
+import { config } from './wagmi';
 
 const account = privateKeyToAccount(process.env.YELLOW_ADMIN_PRIVATE_KEY! as `0x${string}` || '0x0000000000000000000000000000000000000000000000000000000000000001');
 
+const currentChain = config.chains[0]; // Default to first configured chain
+
 const publicClient = createPublicClient({
-  chain: sepolia,
-  transport: http(process.env.NEXT_PUBLIC_YELLOW_NODE_URL || 'https://1rpc.io/sepolia')
+  chain: currentChain,
+  transport: http()
 });
 
 const walletClient = createWalletClient({
-  chain: sepolia,
-  transport: http(process.env.NEXT_PUBLIC_YELLOW_NODE_URL || 'https://1rpc.io/sepolia'),
+  chain: currentChain,
+  transport: http(),
   account
 });
 
@@ -24,7 +27,7 @@ export const yellowClient = new NitroliteClient({
     custody: '0x019B65A265EB3363822f2752141b3dF16131b262',
     adjudicator: '0x7c7ccbc98469190849BCC6c926307794fDfB11F2',
   },
-  chainId: sepolia.id,
+  chainId: currentChain.id,
   challengeDuration: 3600n,
 });
 

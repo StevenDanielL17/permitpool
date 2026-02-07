@@ -96,10 +96,10 @@ export default function IssueLicense() {
               onChange={(e) => setSubdomain(e.target.value)}
               placeholder="alice"
             />
-            <span className="text-gray-500">.fund.eth</span>
+            <span className="text-gray-500">.myhedgefund.eth</span>
           </div>
           <p className="text-sm text-gray-500 mt-2">
-            Will create: <span className="text-blue-400">{subdomain || 'alice'}.fund.eth</span>
+            Will create: <span className="text-blue-400">{subdomain || 'alice'}.myhedgefund.eth</span>
           </p>
         </div>
 

@@ -46,8 +46,8 @@ contract MockNameWrapper {
         fuseData[node].owner = owner;
     }
     
-    function setFuses(uint256 node, uint32 fuses) external {
-        fuseData[node].fuses = fuses;
+    function setFuses(bytes32 node, uint32 fuses) external {
+        fuseData[uint256(node)].fuses = fuses;
     }
     
     function ownerOf(uint256 id) external view returns (address) {
@@ -136,7 +136,7 @@ contract PermitPoolHookTest is Test {
         // Setup valid user
         nameWrapper.setName(validUser, "alice.permitpool.eth");
         nameWrapper.setOwner(validNode, validUser);
-        nameWrapper.setFuses(validNode, CANNOT_TRANSFER | PARENT_CANNOT_CONTROL);
+        nameWrapper.setFuses(bytes32(validNode), CANNOT_TRANSFER | PARENT_CANNOT_CONTROL);
         textResolver.setText(bytes32(validNode), "arc.credential", "valid_arc_credential");
         
         // Setup Arc and Yellow Logic
@@ -397,7 +397,7 @@ contract PermitPoolHookTest is Test {
         nameWrapper.setName(noTransferFuseUser, "bob.permitpool.eth");
         nameWrapper.setOwner(node, noTransferFuseUser);
         // Only PARENT_CANNOT_CONTROL, missing CANNOT_TRANSFER
-        nameWrapper.setFuses(node, PARENT_CANNOT_CONTROL);
+        nameWrapper.setFuses(bytes32(node), PARENT_CANNOT_CONTROL);
         textResolver.setText(bytes32(node), "arc.credential", "valid");
         
         vm.prank(address(poolManager));
@@ -429,7 +429,7 @@ contract PermitPoolHookTest is Test {
         nameWrapper.setName(noParentControlUser, "charlie.permitpool.eth");
         nameWrapper.setOwner(node, noParentControlUser);
         // Only CANNOT_TRANSFER, missing PARENT_CANNOT_CONTROL
-        nameWrapper.setFuses(node, CANNOT_TRANSFER);
+        nameWrapper.setFuses(bytes32(node), CANNOT_TRANSFER);
         textResolver.setText(bytes32(node), "arc.credential", "valid");
         
         vm.prank(address(poolManager));
@@ -464,7 +464,7 @@ contract PermitPoolHookTest is Test {
         
         nameWrapper.setName(noCredentialUser, "dave.permitpool.eth");
         nameWrapper.setOwner(node, noCredentialUser);
-        nameWrapper.setFuses(node, CANNOT_TRANSFER | PARENT_CANNOT_CONTROL);
+        nameWrapper.setFuses(bytes32(node), CANNOT_TRANSFER | PARENT_CANNOT_CONTROL);
         // NO Arc credential set
         
         vm.prank(address(poolManager));

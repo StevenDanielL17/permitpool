@@ -61,9 +61,9 @@ export default function RootLayout({
             
             <div className="relative z-10">
               {children}
+              <Footer />
             </div>
           </main>
-          <Footer />
           <DevToolbar />
           <Toaster position="top-right" />
         </Providers>

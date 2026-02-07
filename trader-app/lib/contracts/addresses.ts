@@ -13,6 +13,6 @@ export const ENS = {
 } as const;
 
 export const TOKENS = {
-  USDC: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' as `0x${string}`, // Sepolia USDC
+  USDC: (process.env.NEXT_PUBLIC_USDC_ADDRESS || '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238') as `0x${string}`, // Dynamic or Sepolia Default
   WETH: '0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14' as `0x${string}`, // Sepolia WETH
 } as const;

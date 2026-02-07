@@ -37,24 +37,9 @@ export function LicenseList() {
   });
 
   // Mock licenses - in production, fetch from contract events or indexer
-  const licenses: License[] = [
-    {
-      subdomain: 'alice',
-      owner: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
-      node: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as `0x${string}`,
-      status: 'active',
-      issuedAt: '2024-01-15',
-      arcCredential: 'arc_cred_alice_123',
-    },
-    {
-      subdomain: 'bob',
-      owner: '0x8ba1f109551bD432803012645Ac136ddd64DBA72',
-      node: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as `0x${string}`,
-      status: 'active',
-      issuedAt: '2024-01-16',
-      arcCredential: 'arc_cred_bob_456',
-    },
-  ];
+  // NOTE: fetching all licenses requires an indexer (e.g. The Graph) or event log parsing.
+  // Currently, we start with an empty list to avoid showing mock data.
+  const licenses: License[] = [];
 
   const handleRevokeLicense = async (license: License) => {
     if (!license.node) {

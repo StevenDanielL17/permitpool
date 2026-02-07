@@ -1,5 +1,5 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { sepolia } from 'wagmi/chains';
+import { mainnet, sepolia, foundry } from 'wagmi/chains';
 import { http } from 'viem';
 import { createStorage } from 'wagmi';
 
@@ -23,8 +23,7 @@ const sepoliaOptimized = {
   rpcUrls: {
     default: {
       http: [
-        'https://sepolia.drpc.org', // Fast public RPC
-        'https://sepolia.infura.io/v3/YOUR_INFURA_KEY',
+        'https://sepolia.drpc.org',
         'https://eth-sepolia-public.unifra.io',
       ],
     },
@@ -34,7 +33,7 @@ const sepoliaOptimized = {
 export const config = getDefaultConfig({
   appName: 'PermitPool',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '02d8a49c5627c022e8f5bf13e32d5f37',
-  chains: [sepoliaOptimized],
+  chains: [mainnet, sepoliaOptimized, foundry],
   ssr: true,
   // Enable persistent wallet connections
   storage: createStorage({
@@ -42,10 +41,8 @@ export const config = getDefaultConfig({
     key: 'permitpool.trader.wallet', // Unique key for trader app
   }),
   transports: {
-    [sepoliaOptimized.id]: http(sepoliaOptimized.rpcUrls.default.http[0], {
-      timeout: 10000, // 10s timeout for requests
-      retryCount: 3,
-      retryDelay: 100,
-    }),
+    [mainnet.id]: http(),
+    [sepoliaOptimized.id]: http(),
+    [foundry.id]: http(),
   },
 });

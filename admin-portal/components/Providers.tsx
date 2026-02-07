@@ -6,6 +6,7 @@ import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { config } from '@/lib/wagmi';
 import { useState } from 'react';
 import '@rainbow-me/rainbowkit/styles.css';
+import { WalletWatcher } from './WalletWatcher';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -26,6 +27,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider initialChain={config.chains[0]}>
+          <WalletWatcher />
           {children}
         </RainbowKitProvider>
       </QueryClientProvider>

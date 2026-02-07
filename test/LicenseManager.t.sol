@@ -37,6 +37,16 @@ contract MockNameWrapper {
     function ownerOf(uint256 id) external view returns (address) {
         return owners[id];
     }
+
+    function setFuses(bytes32 node, uint32 fuses) external {
+        uint256 id = uint256(node);
+        fuseData[id].fuses = fuseData[id].fuses | fuses;
+    }
+
+    function getData(uint256 id) external view returns (address owner, uint32 fuses, uint64 expiry) {
+        FuseData memory data = fuseData[id];
+        return (owners[id], data.fuses, data.expiry);
+    }
 }
 
 contract MockResolver {

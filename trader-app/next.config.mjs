@@ -28,9 +28,9 @@ const nextConfig = {
   },
   
   // Optimize bundle
-  experimental: {
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-slot'],
-  },
+  // experimental: {
+  //   optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-slot'],
+  // },
   
   // Headers for caching
   async headers() {

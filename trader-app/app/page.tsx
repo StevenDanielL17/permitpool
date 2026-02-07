@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { CONTRACTS } from '@/lib/contracts/addresses';
 import { LICENSE_MANAGER_ABI } from '@/lib/contracts/abis';
 import { ConnectButton } from '@/components/ConnectButton';
+import { useENSLicenseCheck } from '@/hooks/useENSLicenseCheck';
 import { Shield, CheckCircle2, AlertCircle, TrendingUp, Activity, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui/button';
 export default function TraderDashboard() {
   const { address, isConnected } = useAccount();
   const [mounted, setMounted] = useState(false);
+  const { hasENS, ensName, isLicensed, message, isChecking } = useENSLicenseCheck();
 
   useEffect(() => {
     setMounted(true);
@@ -90,7 +92,10 @@ export default function TraderDashboard() {
         
         <div className="glass px-6 py-3 rounded-full border border-green-500/30 flex items-center gap-3 bg-green-500/5">
           <Shield className="w-5 h-5 text-green-500" />
-          <span className="font-semibold text-green-400">License Active</span>
+          <div className="flex flex-col">
+            <span className="font-semibold text-green-400">License Active</span>
+            {ensName && <span className="text-xs text-gray-400">{ensName}</span>}
+          </div>
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
         </div>
       </header>

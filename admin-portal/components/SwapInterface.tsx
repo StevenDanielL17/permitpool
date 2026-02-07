@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useENSLicenseCheck } from '@/hooks/useENSLicenseCheck';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ArrowDownUp } from 'lucide-react';
+import { ArrowDownUp, Shield } from 'lucide-react';
 import { TOKENS } from '@/lib/contracts/addresses';
 
 interface SwapInterfaceProps {
@@ -12,6 +13,7 @@ interface SwapInterfaceProps {
 }
 
 export function SwapInterface(props: SwapInterfaceProps) {
+  const { hasENS, ensName, isLicensed, message } = useENSLicenseCheck();
   const [fromAmount, setFromAmount] = useState('');
   const [toAmount, setToAmount] = useState('');
   const [fromToken, setFromToken] = useState<'USDC' | 'WETH'>('USDC');
@@ -41,6 +43,23 @@ export function SwapInterface(props: SwapInterfaceProps) {
 
   return (
     <div className="space-y-4">
+      {/* ENS License Badge */}
+      {isLicensed && ensName && (
+        <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex items-center gap-2">
+          <Shield className="h-5 w-5 text-green-500" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-green-400">Licensed Trader</p>
+            <p className="text-xs text-gray-400">{ensName}</p>
+          </div>
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+        </div>
+      )}
+      {!isLicensed && message && (
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+          <p className="text-sm text-yellow-400">{message}</p>
+        </div>
+      )}
+      
       <div className="space-y-2">
         <label className="block text-sm font-medium">From</label>
         <div className="flex gap-2">

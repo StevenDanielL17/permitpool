@@ -3,21 +3,21 @@
 
 export const HOOK_ABI = [
   {
-    inputs: [{ name: 'user', type: 'address' }],
-    name: 'getENSNodeForAddress',
+    inputs: [{ name: 'addr', type: 'address' }],
+    name: 'getEnsNodeForAddress',
     outputs: [{ name: '', type: 'bytes32' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
-    inputs: [{ name: 'node', type: 'bytes32' }],
+    inputs: [{ name: 'user', type: 'address' }],
     name: 'revokeLicense',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
   },
   {
-    inputs: [{ name: 'node', type: 'bytes32' }],
+    inputs: [{ name: 'user', type: 'address' }],
     name: 'restoreLicense',
     outputs: [],
     stateMutability: 'nonpayable',

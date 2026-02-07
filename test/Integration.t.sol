@@ -48,6 +48,10 @@ contract MockNameWrapper {
         fuseData[tokenId] = FuseData(owner, fuses, expiry);
         return node;
     }
+
+    function setFuses(bytes32 node, uint32 fuses) external {
+        fuseData[uint256(node)].fuses = fuseData[uint256(node)].fuses | fuses;
+    }
     
     function ownerOf(uint256 id) external view returns (address) {
         return owners[id];

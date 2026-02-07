@@ -4,7 +4,7 @@
   "description": "PermitPool Admin Portal - License Management",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ensdomains/ensjs": "^4.0.0",
+    "@erc7824/nitrolite": "^0.5.3",
     "@hookform/resolvers": "^3.6.0",
     "@lifi/sdk": "^3.0.0",
     "@radix-ui/react-dialog": "^1.1.15",

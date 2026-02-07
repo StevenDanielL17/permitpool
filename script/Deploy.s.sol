@@ -36,19 +36,32 @@ contract DeployScript is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // 0. Deploy Mock Contracts (since they're marked as 0x... in .env)
-        MockYellowClearnode yellowClearnodeInstance = new MockYellowClearnode();
-        console.log("MockYellowClearnode deployed at:", address(yellowClearnodeInstance));
-        
-        MockArcVerifier arcVerifierInstance = new MockArcVerifier();
-        console.log("MockArcVerifier deployed at:", address(arcVerifierInstance));
+        // 0. Resolve External Dependencies (Real vs Mock)
+        address yellowClearnodeAddress = vm.envOr("YELLOW_CLEARNODE", address(0));
+        address arcVerifierAddress = vm.envOr("ARC_VERIFIER", address(0));
+
+        if (yellowClearnodeAddress == address(0)) {
+            MockYellowClearnode mockYellow = new MockYellowClearnode();
+            yellowClearnodeAddress = address(mockYellow);
+            console.log("Deployed MockYellowClearnode at:", yellowClearnodeAddress);
+        } else {
+            console.log("Using Real YellowClearnode at:", yellowClearnodeAddress);
+        }
+
+        if (arcVerifierAddress == address(0)) {
+            MockArcVerifier mockArc = new MockArcVerifier();
+            arcVerifierAddress = address(mockArc);
+            console.log("Deployed MockArcVerifier at:", arcVerifierAddress);
+        } else {
+            console.log("Using Real ArcVerifier at:", arcVerifierAddress);
+        }
 
         // 1. Deploy ArcOracle
-        ArcOracle arcOracle = new ArcOracle(address(arcVerifierInstance));
+        ArcOracle arcOracle = new ArcOracle(arcVerifierAddress);
         console.log("ArcOracle deployed at:", address(arcOracle));
 
         // 2. Deploy PaymentManager
-        PaymentManager paymentManager = new PaymentManager(address(yellowClearnodeInstance), deployer);
+        PaymentManager paymentManager = new PaymentManager(yellowClearnodeAddress, deployer);
         console.log("PaymentManager deployed at:", address(paymentManager));
 
         // 3. Deploy PermitPoolHook first (needed by LicenseManager)
@@ -98,6 +111,20 @@ contract DeployScript is Script {
         console.log("Setting LicenseManager on Hook...");
         hook.setLicenseManager(address(licenseManager));
         console.log("LicenseManager set on Hook successfully");
+
+        // 6. Approve LicenseManager on ENS NameWrapper (Critical!)
+        console.log("Approving LicenseManager on ENS NameWrapper...");
+        // Define interface locally or cast
+        // We use low-level call or cast if interface is available.
+        // Let's use a raw call for simplicity to avoid import issues if INameWrapper isn't perfect
+        (bool success, ) = NAME_WRAPPER.call(
+            abi.encodeWithSignature("setApprovalForAll(address,bool)", address(licenseManager), true)
+        );
+        if (success) {
+            console.log("Approved LicenseManager on NameWrapper");
+        } else {
+            console.log("Warning: Failed to approve LicenseManager on NameWrapper");
+        }
 
         vm.stopBroadcast();
     }
