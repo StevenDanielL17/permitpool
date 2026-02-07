@@ -73,13 +73,14 @@ contract LicenseManagerTest is Test {
     address public user = address(0x1);
     bytes32 public parentNode = keccak256(abi.encodePacked(bytes32(0), keccak256("permitpool")));
     
-    event LicenseIssued(address indexed licensee, string label, bytes32 indexed node, string arcCredentialHash);
+    event LicenseIssued(address indexed holder, string subdomain, bytes32 indexed licenseNode, string arcCredential);
     
     function setUp() public {
         nameWrapper = new MockNameWrapper();
         resolver = new MockResolver();
         hook = new MockPermitPoolHook();
         
+        vm.prank(admin);
         manager = new LicenseManager(
             address(nameWrapper),
             address(resolver),
@@ -93,11 +94,10 @@ contract LicenseManagerTest is Test {
         string memory label = "alice";
         string memory cred = "valid-cred";
         
-        vm.prank(admin);
-        vm.expectEmit(true, false, true, true); // label is not indexed
-        // Note: event signature: event LicenseIssued(address indexed licensee, string label, bytes32 indexed node, string arcCredentialHash);
-        
         bytes32 expectedNode = keccak256(abi.encodePacked(parentNode, keccak256(bytes(label))));
+        
+        vm.prank(admin);
+        vm.expectEmit(true, false, true, true);
         emit LicenseIssued(user, label, expectedNode, cred);
         
         bytes32 node = manager.issueLicense(user, label, cred);

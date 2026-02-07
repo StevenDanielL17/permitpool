@@ -1,223 +1,159 @@
+'use client';
+
+import { useAccount, useReadContract } from 'wagmi';
+import { useEffect, useState } from 'react';
+import { CONTRACTS } from '@/lib/contracts/addresses';
+import { LICENSE_MANAGER_ABI } from '@/lib/contracts/abis';
+import { ConnectButton } from '@/components/ConnectButton';
+import { Shield, CheckCircle2, AlertCircle, TrendingUp, Activity, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Shield, Zap, Lock, CheckCircle2, Users, TrendingUp, Activity } from 'lucide-react';
 
-export default function Home() {
-  return (
-    <div className="relative">
-      {/* Hero Section - Sui.io style */}
-      <div className="container mx-auto px-6 py-32 animate-fade-in">
-        <div className="max-w-5xl">
-          {/* Large bold heading like Sui.io */}
-          <h1 className="text-7xl md:text-8xl font-bold tracking-tight leading-none mb-8">
-            Institutional
-            <br />
-            <span className="gradient-text">DeFi Access.</span>
+export default function TraderDashboard() {
+  const { address, isConnected } = useAccount();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // CHECK: Does this wallet have a license from PermitPool?
+  const { data: hasLicense, isLoading } = useReadContract({
+    address: CONTRACTS.LICENSE_MANAGER,
+    abi: LICENSE_MANAGER_ABI,
+    functionName: 'hasValidLicense',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: isConnected && !!address,
+    }
+  });
+
+  if (!mounted) return null;
+
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-white/[0.02] -z-10" />
+        <div className="max-w-xl text-center p-8 glass rounded-2xl border border-white/10 glow-blue">
+          <h1 className="text-5xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
+            PermitPool Trading
           </h1>
-          
-          {/* Subtitle with blue accent */}
-          <div className="flex items-start gap-3 mb-12">
-            <div className="w-1 h-6 bg-primary mt-1" />
-            <p className="text-xl md:text-2xl text-gray-400 max-w-2xl">
-              Trade on Uniswap v4 with institutional compliance built-in.
-              Your license grants you secure, auditable access to permissioned pools.
-            </p>
-          </div>
-
-          {/* CTA Button with glow */}
-          <Link href="/trade">
-            <Button 
-              size="lg" 
-              className="text-lg px-8 py-6 glow-blue-sm hover-lift group"
-            >
-              Start Trading
-              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-            </Button>
-          </Link>
-        </div>
-      </div>
-
-      {/* Stats Section */}
-      <div className="container mx-auto px-6 py-12">
-        <div className="grid md:grid-cols-3 gap-6 max-w-6xl">
-          <div className="glass rounded-xl p-6 border-dashed-sui text-center">
-            <Activity className="h-8 w-8 text-primary mx-auto mb-3" />
-            <div className="text-4xl font-bold mb-2 mono-number">100%</div>
-            <div className="text-gray-400 text-sm">On-Chain Verification</div>
-          </div>
-          <div className="glass rounded-xl p-6 border-dashed-sui text-center">
-            <Users className="h-8 w-8 text-primary mx-auto mb-3" />
-            <div className="text-4xl font-bold mb-2 mono-number">24/7</div>
-            <div className="text-gray-400 text-sm">Real-Time Access</div>
-          </div>
-          <div className="glass rounded-xl p-6 border-dashed-sui text-center">
-            <TrendingUp className="h-8 w-8 text-primary mx-auto mb-3" />
-            <div className="text-4xl font-bold mb-2 mono-number">v4</div>
-            <div className="text-gray-400 text-sm">Uniswap Protocol</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Features Section - Technical layout like Sui.io */}
-      <div className="container mx-auto px-6 py-20">
-        <div className="grid md:grid-cols-2 gap-8 max-w-6xl">
-          {/* Feature Card 1 */}
-          <div className="glass rounded-xl p-8 border-dashed-sui hover-lift transform-gpu">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="mono-number text-sm text-gray-500">01</div>
-              <Shield className="h-6 w-6 text-primary" />
-            </div>
-            <h3 className="text-2xl font-bold mb-3">License-Based Access</h3>
-            <p className="text-gray-400 leading-relaxed">
-              Non-transferable ENS-based licenses ensure only verified institutional
-              traders can access permissioned pools. Built on Uniswap v4 hooks.
-            </p>
-          </div>
-
-          {/* Feature Card 2 */}
-          <div className="glass rounded-xl p-8 border-dashed-sui hover-lift transform-gpu">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="mono-number text-sm text-gray-500">02</div>
-              <Zap className="h-6 w-6 text-primary" />
-            </div>
-            <h3 className="text-2xl font-bold mb-3">Real-Time Verification</h3>
-            <p className="text-gray-400 leading-relaxed">
-              Arc DID credentials and Yellow Network payment verification happen
-              on-chain, in real-time, with every swap transaction.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* How It Works Section */}
-      <div className="container mx-auto px-6 py-20">
-        <div className="max-w-4xl">
-          <div className="mb-12">
-            <div className="mono-number text-sm text-gray-500 mb-4">HOW IT WORKS</div>
-            <h2 className="text-5xl font-bold mb-4">Three Simple Steps</h2>
-            <p className="text-xl text-gray-400">Get started with institutional DeFi trading</p>
-          </div>
-
-          <div className="space-y-6">
-            {/* Step 1 */}
-            <div className="glass rounded-xl p-6 border-l-4 border-primary">
-              <div className="flex items-start gap-4">
-                <div className="mono-number text-2xl font-bold text-primary">01</div>
-                <div>
-                  <h4 className="text-xl font-bold mb-2">Connect Your Wallet</h4>
-                  <p className="text-gray-400">Link your institutional wallet to verify your identity and credentials.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Step 2 */}
-            <div className="glass rounded-xl p-6 border-l-4 border-primary">
-              <div className="flex items-start gap-4">
-                <div className="mono-number text-2xl font-bold text-primary">02</div>
-                <div>
-                  <h4 className="text-xl font-bold mb-2">Verify Your License</h4>
-                  <p className="text-gray-400">Your ENS-based trading license is automatically verified through Arc DID.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Step 3 */}
-            <div className="glass rounded-xl p-6 border-l-4 border-primary">
-              <div className="flex items-start gap-4">
-                <div className="mono-number text-2xl font-bold text-primary">03</div>
-                <div>
-                  <h4 className="text-xl font-bold mb-2">Start Trading</h4>
-                  <p className="text-gray-400">Access permissioned pools and execute compliant trades on Uniswap v4.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Security Features */}
-      <div className="container mx-auto px-6 py-20">
-        <div className="max-w-4xl glass rounded-2xl p-12 border-dashed-sui">
-          <div className="flex items-center gap-3 mb-8">
-            <Lock className="h-8 w-8 text-primary" />
-            <h2 className="text-4xl font-bold">Enterprise Security</h2>
-          </div>
-          
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="h-6 w-6 text-green-500 flex-shrink-0 mt-1" />
-              <div>
-                <h4 className="font-semibold mb-1">Non-Transferable Licenses</h4>
-                <p className="text-sm text-gray-400">Licenses are bound to verified addresses and cannot be transferred</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="h-6 w-6 text-green-500 flex-shrink-0 mt-1" />
-              <div>
-                <h4 className="font-semibold mb-1">On-Chain Verification</h4>
-                <p className="text-sm text-gray-400">All credentials verified directly on-chain for maximum security</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="h-6 w-6 text-green-500 flex-shrink-0 mt-1" />
-              <div>
-                <h4 className="font-semibold mb-1">Real-Time Compliance</h4>
-                <p className="text-sm text-gray-400">Every transaction checked against current license status</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="h-6 w-6 text-green-500 flex-shrink-0 mt-1" />
-              <div>
-                <h4 className="font-semibold mb-1">Audit Trail</h4>
-                <p className="text-sm text-gray-400">Complete transaction history for regulatory compliance</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Technical Details Section */}
-      <div className="container mx-auto px-6 py-20">
-        <div className="max-w-4xl border-dashed-sui rounded-xl p-12 glass">
-          <div className="mono-number text-sm text-gray-500 mb-6">TECHNICAL STACK</div>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div>
-              <div className="text-primary font-semibold mb-2">Protocol</div>
-              <div className="text-gray-400">Uniswap v4</div>
-            </div>
-            <div>
-              <div className="text-primary font-semibold mb-2">Identity</div>
-              <div className="text-gray-400">Arc DID + ENS</div>
-            </div>
-            <div>
-              <div className="text-primary font-semibold mb-2">Payments</div>
-              <div className="text-gray-400">Yellow Network</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* CTA Section */}
-      <div className="container mx-auto px-6 py-32">
-        <div className="max-w-4xl text-center mx-auto">
-          <h2 className="text-5xl md:text-6xl font-bold mb-6">
-            Ready to start <span className="gradient-text">trading?</span>
-          </h2>
-          <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
-            Join institutional traders accessing compliant DeFi markets
+          <p className="text-xl text-gray-400 mb-8">
+            Connect your licensed wallet to access institutional DeFi pools.
           </p>
-          <Link href="/trade">
-            <Button 
-              size="lg" 
-              className="text-lg px-12 py-6 glow-blue hover-lift group"
-            >
-              Launch App
-              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-            </Button>
-          </Link>
+          <div className="flex justify-center">
+            <ConnectButton />
+          </div>
         </div>
       </div>
+    );
+  }
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+        <span className="ml-3 text-lg font-medium">Verifying license...</span>
+      </div>
+    );
+  }
+
+  if (!hasLicense) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="max-w-md w-full glass p-8 rounded-2xl border border-red-500/30 shadow-lg shadow-red-500/10">
+          <div className="flex flex-col items-center text-center">
+            <div className="bg-red-500/10 p-4 rounded-full mb-6">
+                <AlertCircle className="w-12 h-12 text-red-500" />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">No Trading License</h2>
+            <p className="text-gray-400 mb-6">
+              Wallet <span className="font-mono text-xs bg-black/50 p-1 rounded text-red-300">{address}</span> is not licensed.
+            </p>
+            <p className="text-sm text-gray-500 border-t border-white/10 pt-4 w-full">
+              Contact your administrator to request access.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Licensed trader - show dashboard
+  return (
+    <div className="min-h-screen container mx-auto px-6 py-12 animate-fade-in">
+      <header className="mb-12 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div>
+          <h1 className="text-4xl font-bold mb-2">Welcome, Trader</h1>
+          <p className="text-gray-400">Institutional Access Granted</p>
+        </div>
+        
+        <div className="glass px-6 py-3 rounded-full border border-green-500/30 flex items-center gap-3 bg-green-500/5">
+          <Shield className="w-5 h-5 text-green-500" />
+          <span className="font-semibold text-green-400">License Active</span>
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+        </div>
+      </header>
+
+      {/* Dashboard Grid */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+        {/* Market Access Card */}
+        <div className="glass p-6 rounded-xl border border-white/10 hover:border-blue-500/50 transition-colors group">
+            <div className="bg-blue-500/10 p-3 rounded-lg w-fit mb-4 group-hover:bg-blue-500/20 transition-colors">
+                <TrendingUp className="w-6 h-6 text-blue-400" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">Uniswap v4 Pools</h3>
+            <p className="text-gray-400 text-sm mb-4">Access permissioned liquidity pools with institutional compliance.</p>
+            <Link href="/trade">
+                <Button className="w-full">Trade Now</Button>
+            </Link>
+        </div>
+
+        {/* Portfolio Card */}
+        <div className="glass p-6 rounded-xl border border-white/10 hover:border-purple-500/50 transition-colors group">
+            <div className="bg-purple-500/10 p-3 rounded-lg w-fit mb-4 group-hover:bg-purple-500/20 transition-colors">
+                <BarChart3 className="w-6 h-6 text-purple-400" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">Portfolio</h3>
+            <p className="text-gray-400 text-sm mb-4">View your positions, performance metrics, and history.</p>
+            <Link href="/dashboard/portfolio">
+                <Button variant="secondary" className="w-full">View Portfolio</Button>
+            </Link>
+        </div>
+
+        {/* Activity Card */}
+        <div className="glass p-6 rounded-xl border border-white/10 hover:border-orange-500/50 transition-colors group">
+            <div className="bg-orange-500/10 p-3 rounded-lg w-fit mb-4 group-hover:bg-orange-500/20 transition-colors">
+                <Activity className="w-6 h-6 text-orange-400" />
+            </div>
+            <h3 className="text-xl font-bold mb-2">Compliance Log</h3>
+            <p className="text-gray-400 text-sm mb-4">Your trading activity is automatically recorded for audit.</p>
+            <Link href="/dashboard/transactions">
+                <Button variant="outline" className="w-full">View Logs</Button>
+            </Link>
+        </div>
+      </div>
+      
+      <div className="glass rounded-xl p-8 border border-white/10">
+          <div className="flex items-center gap-3 mb-6">
+              <CheckCircle2 className="w-6 h-6 text-green-500" />
+              <h2 className="text-2xl font-bold">Verification Status</h2>
+          </div>
+          <div className="grid md:grid-cols-2 gap-8">
+              <div>
+                  <h4 className="font-semibold text-gray-300 mb-2">ENS License</h4>
+                  <div className="flex items-center gap-2 text-green-400 bg-green-950/30 p-3 rounded-lg border border-green-500/20">
+                      <span className="font-mono text-sm">Valid (Soulbound)</span>
+                  </div>
+              </div>
+              <div>
+                  <h4 className="font-semibold text-gray-300 mb-2">Arc Identity</h4>
+                  <div className="flex items-center gap-2 text-green-400 bg-green-950/30 p-3 rounded-lg border border-green-500/20">
+                      <span className="font-mono text-sm">Verified (DID)</span>
+                  </div>
+              </div>
+          </div>
+      </div>
     </div>
   );
 }

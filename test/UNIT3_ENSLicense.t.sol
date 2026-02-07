@@ -116,10 +116,10 @@ contract UNIT3_ENSLicenseTest is Test {
         assert(licenseManager.admin() == owner);
         
         // Verify parent node is set
-        assert(licenseManager.parentNode() == parentNode);
+        assert(licenseManager.PARENT_NODE() == parentNode);
         
         // Verify name wrapper is set correctly (compare addresses)
-        assert(address(licenseManager.nameWrapper()) == NAME_WRAPPER);
+        assert(address(licenseManager.NAME_WRAPPER()) == NAME_WRAPPER);
         
         console.log("  OK: License manager properly configured");
     }

@@ -200,7 +200,7 @@ contract PermitPoolHookTest is Test {
     
     function test_NodeCalculation() public {
         vm.prank(address(poolManager));
-        bytes32 node = hook.getENSNodeForAddress(validUser);
+        bytes32 node = hook.getEnsNodeForAddress(validUser);
         assertEq(node, bytes32(validNode));
     }
     
@@ -623,7 +623,7 @@ contract PermitPoolHookTest is Test {
         // Note: revokeLicense emits LicenseRevokedEvent with node = 0 if it fails lookup
         // But here we set up validUser lookup in setup()
         // Wait, does setup() set name for validUser? Yes "alice.permitpool.eth"
-        // So getENSNodeForAddress(validUser) should work.
+        // So getEnsNodeForAddress(validUser) should work.
         // It requires name wrapper lookup.
         
         vm.expectEmit(true, true, false, true);

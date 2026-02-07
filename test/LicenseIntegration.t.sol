@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {LicenseManager} from "../src/LicenseManager.sol";
 import {PermitPoolHook} from "../src/PermitPoolHook.sol";
 import {ArcOracle} from "../src/ArcOracle.sol";
@@ -98,7 +98,6 @@ contract LicenseIntegrationTest is Test {
             address(nameWrapper),
             address(resolver),
             address(hook),
-            address(arcOracle),
             parentNode,
             admin
         );

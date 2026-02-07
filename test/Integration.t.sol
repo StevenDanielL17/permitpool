@@ -149,7 +149,6 @@ contract IntegrationTest is Test, Deployers {
         vm.prank(admin);
         licenseManager = new LicenseManager(address(nameWrapper), address(textResolver), address(hook), parentNode, admin);
         require(address(hook) == hookAddress, "Hook address mismatch");
-        
         (currency0, currency1) = deployMintAndApprove2Currencies();
         
         (key, ) = initPool(

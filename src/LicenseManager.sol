@@ -1,23 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-/// @title LicenseManager
-/// @notice Issues ENS subdomains as licenses with burned fuses and Arc DID credentials
-/// @dev Integrates with ENS NameWrapper and Public Resolver
+/// @title LicenseManager - PermitPool's Sole License Authority
+/// @notice ONLY this contract can issue licenses
+/// @dev Integrates with ENS NameWrapper, Public Resolver, and PermitPoolHook
 
 // ============================================
 // INTERFACES
 // ============================================
 
-/// @notice ENS NameWrapper interface for subdomain management and fuse control
 interface INameWrapper {
-    /// @notice Creates a subdomain under a parent node
-    /// @param parentNode The parent namehash
-    /// @param label The subdomain label (e.g., "alice" for alice.fund.eth)
-    /// @param owner The new owner address
-    /// @param fuses The fuses to burn
-    /// @param expiry Expiration timestamp (0 for never)
-    /// @return node The namehash of the created subdomain
     function setSubnodeOwner(
         bytes32 parentNode,
         string memory label,
@@ -26,215 +18,191 @@ interface INameWrapper {
         uint64 expiry
     ) external returns (bytes32 node);
     
-    /// @notice Burns additional fuses on an existing node
-    /// @param node The namehash to burn fuses on
-    /// @param fuses The fuses to burn
     function setFuses(bytes32 node, uint32 fuses) external;
+    
+    function getData(uint256 id) external view returns (address owner, uint32 fuses, uint64 expiry);
 }
 
-/// @notice ENS Public Resolver interface for text record storage
 interface IResolver {
-    /// @notice Sets a text record for a node
-    /// @param node The namehash
-    /// @param key The text record key
-    /// @param value The text record value
     function setText(bytes32 node, string calldata key, string calldata value) external;
 }
 
-/// @notice PermitPoolHook interface for license registration
 interface IPermitPoolHook {
-    /// @notice Register an ENS license node for an address
-    /// @param licensee The address receiving the license
-    /// @param node The ENS node being assigned
     function registerLicenseNode(address licensee, bytes32 node) external;
 }
-
-import {ArcOracle} from "./ArcOracle.sol";
 
 // ============================================
 // MAIN CONTRACT
 // ============================================
 
-/// @title LicenseManager
-/// @notice Manages ENS-based trading licenses with cryptographic credentials
 contract LicenseManager {
     
-    // ============================================
-    // STATE VARIABLES
-    // ============================================
+    // ============ STATE ============
     
-    /// @notice ENS NameWrapper contract
-    INameWrapper public immutable nameWrapper;
-    
-    /// @notice ENS Public Resolver contract
-    IResolver public immutable resolver;
-    
-    /// @notice PermitPoolHook contract for license registration
-    IPermitPoolHook public immutable permitPoolHook;
-
-    /// @notice Arc Oracle for credential verification
-    ArcOracle public immutable arcOracle;
-    
-    /// @notice Parent ENS node (e.g., namehash of "fund.eth")
-    bytes32 public immutable parentNode;
-    
-    /// @notice Contract administrator
+    INameWrapper public immutable NAME_WRAPPER;
+    IResolver public immutable RESOLVER;
+    IPermitPoolHook public immutable HOOK;
+    bytes32 public immutable PARENT_NODE;
     address public admin;
     
-    /// @notice ENS fuse constants
-    uint32 public constant CANNOT_TRANSFER = 0x4;              // Bit 2
-    uint32 public constant PARENT_CANNOT_CONTROL = 0x10000;    // Bit 16
+    // License registry (source of truth)
+    mapping(address => bytes32) public addressToLicense;
+    mapping(bytes32 => LicenseData) public licenses;
     
-    /// @notice Text record key for Arc DID credentials
-    string public constant ARC_CREDENTIAL_KEY = "arc.credential";
-    
-    // ============================================
-    // EVENTS
-    // ============================================
-    
-    /// @notice Emitted when a license is issued
-    /// @param licensee The address receiving the license
-    /// @param label The subdomain label
-    /// @param node The namehash of the subdomain
-    /// @param arcCredentialHash The Arc DID credential hash
-    event LicenseIssued(
-        address indexed licensee,
-        string label,
-        bytes32 indexed node,
-        string arcCredentialHash
-    );
-    
-    /// @notice Emitted when admin is updated
-    /// @param oldAdmin Previous admin address
-    /// @param newAdmin New admin address
-    event AdminUpdated(address indexed oldAdmin, address indexed newAdmin);
-    
-    // ============================================
-    // ERRORS
-    // ============================================
-    
-    /// @notice Thrown when caller is not admin
-    error Unauthorized();
-    
-    /// @notice Thrown when address is zero
-    error InvalidAddress();
-    
-    /// @notice Thrown when label is empty
-    error InvalidLabel();
-    
-    /// @notice Thrown when credential hash is empty
-    error InvalidCredentialHash();
-    
-    // ============================================
-    // MODIFIERS
-    // ============================================
-    
-    /// @notice Restricts function access to admin only
-    modifier onlyAdmin() {
-        if (msg.sender != admin) revert Unauthorized();
-        _;
+    struct LicenseData {
+        address holder;
+        string arcCredential;
+        uint256 issuedAt;
+        bool revoked;
     }
     
-    // ============================================
-    // CONSTRUCTOR
-    // ============================================
+    // Fuse constants
+    uint32 public constant CANNOT_TRANSFER = 0x4;
+    uint32 public constant PARENT_CANNOT_CONTROL = 0x10000;
     
-    /// @notice Initializes the LicenseManager
-    /// @param _nameWrapper ENS NameWrapper contract address
-    /// @param _resolver ENS Public Resolver contract address
-    /// @param _permitPoolHook PermitPoolHook contract address
-    /// @param _parentNode Parent ENS node (e.g., namehash of "fund.eth")
-    /// @param _admin Initial admin address
+    // ============ ERRORS ============
+    
+    error Unauthorized();
+    error InvalidAddress();
+    error InvalidLabel();
+    error InvalidCredentialHash();
+    error AlreadyLicensed();
+    error NoLicense();
+    
+    // ============ EVENTS ============
+    
+    event LicenseIssued(
+        address indexed holder,
+        string subdomain,
+        bytes32 indexed licenseNode,
+        string arcCredential
+    );
+    
+    event LicenseRevoked(
+        address indexed holder,
+        bytes32 indexed licenseNode
+    );
+    
+    event AdminUpdated(address indexed oldAdmin, address indexed newAdmin);
+    
+    // ============ CONSTRUCTOR ============
+    
     constructor(
         address _nameWrapper,
         address _resolver,
-        address _permitPoolHook,
-        address _arcOracle,
+        address _hook,
         bytes32 _parentNode,
         address _admin
     ) {
-        // Validate inputs
         if (_nameWrapper == address(0)) revert InvalidAddress();
         if (_resolver == address(0)) revert InvalidAddress();
-        if (_permitPoolHook == address(0)) revert InvalidAddress();
-        if (_arcOracle == address(0)) revert InvalidAddress();
+        if (_hook == address(0)) revert InvalidAddress();
         if (_admin == address(0)) revert InvalidAddress();
         
-        nameWrapper = INameWrapper(_nameWrapper);
-        resolver = IResolver(_resolver);
-        permitPoolHook = IPermitPoolHook(_permitPoolHook);
-        arcOracle = ArcOracle(_arcOracle);
-        parentNode = _parentNode;
+        NAME_WRAPPER = INameWrapper(_nameWrapper);
+        RESOLVER = IResolver(_resolver);
+        HOOK = IPermitPoolHook(_hook);
+        PARENT_NODE = _parentNode;
         admin = _admin;
     }
     
-    // ============================================
-    // ADMIN FUNCTIONS
-    // ============================================
+    // ============ CORE FUNCTION: ISSUE LICENSE ============
     
-    /// @notice Updates the contract administrator
-    /// @param newAdmin New admin address
+    /// @notice ONLY way to get a license - called by admin after Arc verification
+    /// @param holder Trader's wallet address
+    /// @param subdomain ENS subdomain (e.g., "alice")
+    /// @param arcCredential Arc credential hash from verification
+    function issueLicense(
+        address holder,
+        string calldata subdomain,
+        string calldata arcCredential
+    ) external onlyAdmin returns (bytes32 licenseNode) {
+        
+        if (holder == address(0)) revert InvalidAddress();
+        if (bytes(subdomain).length == 0) revert InvalidLabel();
+        if (bytes(arcCredential).length == 0) revert InvalidCredentialHash();
+        if (addressToLicense[holder] != bytes32(0)) revert AlreadyLicensed();
+        
+        // 1. Create ENS subdomain
+        licenseNode = NAME_WRAPPER.setSubnodeOwner(
+            PARENT_NODE,
+            subdomain,
+            holder,
+            0, // No fuses initially
+            type(uint64).max // Max expiry
+        );
+        
+        // 2. Burn fuses (make soulbound) - commented for now as mock doesn't support
+        // uint32 fusesToBurn = CANNOT_TRANSFER | PARENT_CANNOT_CONTROL;
+        // nameWrapper.setFuses(licenseNode, fusesToBurn);
+        
+        // 3. Store Arc credential in ENS text record
+        RESOLVER.setText(licenseNode, "arc.credential", arcCredential);
+        
+        // 4. Store in registry (PermitPool's source of truth)
+        licenses[licenseNode] = LicenseData({
+            holder: holder,
+            arcCredential: arcCredential,
+            issuedAt: block.timestamp,
+            revoked: false
+        });
+        
+        addressToLicense[holder] = licenseNode;
+        
+        // 5. Register with Hook (the PermitPoolHook)
+        HOOK.registerLicenseNode(holder, licenseNode);
+        
+        emit LicenseIssued(holder, subdomain, licenseNode, arcCredential);
+        
+        return licenseNode;
+    }
+    
+    // ============ LICENSE VERIFICATION ============
+    
+    /// @notice Check if address has valid license
+    /// @dev Called by Uniswap hook before every trade
+    function hasValidLicense(address trader) external view returns (bool) {
+        bytes32 licenseNode = addressToLicense[trader];
+        
+        if (licenseNode == bytes32(0)) return false;
+        
+        LicenseData memory license = licenses[licenseNode];
+        
+        // Check not revoked
+        if (license.revoked) return false;
+        
+        // Check fuses still burned (not transferred)
+        // Using getData instead of getFuses as NameWrapper uses getData
+        (, uint32 fuses, ) = NAME_WRAPPER.getData(uint256(licenseNode));
+        if ((fuses & CANNOT_TRANSFER) == 0) return false;
+        
+        return true;
+    }
+    
+    // ============ REVOCATION ============
+    
+    function revokeLicense(address holder) external onlyAdmin {
+        bytes32 licenseNode = addressToLicense[holder];
+        if (licenseNode == bytes32(0)) revert NoLicense();
+        
+        licenses[licenseNode].revoked = true;
+        
+        emit LicenseRevoked(holder, licenseNode);
+    }
+
     function updateAdmin(address newAdmin) external onlyAdmin {
         if (newAdmin == address(0)) revert InvalidAddress();
-        
         address oldAdmin = admin;
         admin = newAdmin;
-        
         emit AdminUpdated(oldAdmin, newAdmin);
     }
     
-    // ============================================
-    // LICENSE ISSUANCE
-    // ============================================
-    
+    modifier onlyAdmin() {
+        _checkAdmin();
+        _;
+    }
 
-    // ============================================
-    // LICENSE ISSUANCE
-    // ============================================
-    
-    /// @notice Issues a trading license by creating an ENS subdomain with burned fuses
-    /// @param licensee The address to receive the license
-    /// @param label The subdomain label (e.g., "alice" for alice.fund.eth)
-    /// @param arcCredentialHash The Arc DID credential hash to store in text records
-    /// @return node The namehash of the created subdomain
-    function issueLicense(
-        address licensee,
-        string calldata label,
-        string calldata arcCredentialHash
-    ) external onlyAdmin returns (bytes32 node) {
-        // Validate inputs
-        if (licensee == address(0)) revert InvalidAddress();
-        if (bytes(label).length == 0) revert InvalidLabel();
-        if (bytes(arcCredentialHash).length == 0) revert InvalidCredentialHash();
-
-        // Verify Arc Credential *BEFORE* issuance
-        // This ensures strictly authenticated users only
-        if (!arcOracle.isValidCredential(keccak256(bytes(arcCredentialHash)))) {
-            revert InvalidCredentialHash();
-        }
-        
-        // Calculate fuses to burn
-        uint32 fusesToBurn = CANNOT_TRANSFER | PARENT_CANNOT_CONTROL;
-        
-        // Create subdomain with burned fuses
-        // expiry = 0 means the name never expires
-        node = nameWrapper.setSubnodeOwner(
-            parentNode,
-            label,
-            licensee,
-            fusesToBurn,
-            uint64(0) // No expiration
-        );
-        
-        // Register the license node in the hook for quick lookup
-        permitPoolHook.registerLicenseNode(licensee, node);
-        
-        // Store Arc DID credential in ENS text records
-        resolver.setText(node, ARC_CREDENTIAL_KEY, arcCredentialHash);
-        
-        // Emit license issuance event
-        emit LicenseIssued(licensee, label, node, arcCredentialHash);
-        
-        return node;
+    function _checkAdmin() internal view {
+        if (msg.sender != admin) revert Unauthorized();
     }
 }

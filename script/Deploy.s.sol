@@ -89,9 +89,8 @@ contract DeployScript is Script {
             NAME_WRAPPER,
             RESOLVER,
             address(hook),
-            address(arcOracle),
             parentNode,
-            deployer // admin
+            deployer
         );
         console.log("LicenseManager deployed at:", address(licenseManager));
 

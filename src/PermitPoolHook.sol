@@ -46,6 +46,10 @@ interface ITextResolver {
     function text(bytes32 node, string calldata key) external view returns (string memory);
 }
 
+interface ILicenseManager {
+    function hasValidLicense(address trader) external view returns (bool);
+}
+
 import {ArcOracle} from "./ArcOracle.sol";
 import {PaymentManager} from "./PaymentManager.sol";
 
@@ -134,6 +138,9 @@ contract PermitPoolHook is BaseHook {
 
     /// @notice Thrown when an address parameter is zero
     error InvalidAddress();
+
+    /// @notice Thrown when a trader does not have a valid license
+    error UnlicensedTrader(address trader);
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -272,28 +279,21 @@ contract PermitPoolHook is BaseHook {
         SwapParams calldata /* params */,
         bytes calldata /* hookData */
     ) internal override returns (bytes4, BeforeSwapDelta, uint24) {
-        // ✅ OPTIMIZATION: Check revocation first (cheapest - mapping read)
-        // This saves gas for revoked users and returns early
-        if (revokedLicenses[sender]) {
-            revert LicenseRevoked(sender);
+        
+        // CHECK: Does trader have valid license from PermitPool?
+        // We cast the address to the interface - ensure licenseManager is set!
+        if (licenseManager == address(0)) {
+            revert InvalidAddress(); // Critical failure if manager not set
         }
 
-        // Then verify ENS ownership and get node
-        bytes32 node = _verifyENSOwnership(sender);
+        bool hasLicense = ILicenseManager(licenseManager).hasValidLicense(sender);
         
-        // Verify required fuses are burned
-        _verifyFuses(node, sender);
-        
-        // Verify Arc DID credential
-        _verifyArcCredential(node, sender);
-
-        // Check Yellow Network Payment
-        if (!paymentManager.isPaymentCurrent(node)) {
-            revert LicenseRevoked(sender);
+        if (!hasLicense) {
+            revert UnlicensedTrader(sender);
         }
         
-        // Emit success event
-        emit LicenseChecked(sender, node, true);
+        // License valid - allow swap
+        emit LicenseChecked(sender, bytes32(0), true); // Emitting verified event
         
         return (BaseHook.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
     }
@@ -321,7 +321,7 @@ contract PermitPoolHook is BaseHook {
     /// @dev First checks the userLicenseNode mapping, then falls back to ENS reverse lookup
     /// @param addr The address to get the ENS node for
     /// @return The ENS node (namehash)
-    function getENSNodeForAddress(address addr) public view returns (bytes32) {
+    function getEnsNodeForAddress(address addr) public view returns (bytes32) {
         // First, check if the address has a registered license node in our mapping
         // This is the primary method since it doesn't rely on ENS reverse resolution setup
         bytes32 node = userLicenseNode[addr];
@@ -364,9 +364,9 @@ contract PermitPoolHook is BaseHook {
     /// @dev Internal function called by beforeSwap
     /// @param sender The address to verify ownership for
     /// @return node The ENS node (namehash) of the owned subdomain
-    function _verifyENSOwnership(address sender) internal view returns (bytes32 node) {
+    function _verifyEnsOwnership(address sender) internal view returns (bytes32 node) {
         // Get the ENS node for the sender
-        node = getENSNodeForAddress(sender);
+        node = getEnsNodeForAddress(sender);
         
         // Verify the sender owns the ENS name
         address owner = nameWrapper.ownerOf(uint256(node));
@@ -426,7 +426,7 @@ contract PermitPoolHook is BaseHook {
         }
 
         // Get node
-        try this.getENSNodeForAddress(user) returns (bytes32 _node) {
+        try this.getEnsNodeForAddress(user) returns (bytes32 _node) {
             node = _node;
         } catch {
             return (false, bytes32(0), false, false);
@@ -449,10 +449,15 @@ contract PermitPoolHook is BaseHook {
 
     /// @notice Restricts function access to admin only
     modifier onlyAdmin() {
+        _checkAdmin();
+        _;
+    }
+
+    /// @dev Internal function to check admin access
+    function _checkAdmin() internal view {
         if (msg.sender != admin) {
             revert Unauthorized();
         }
-        _;
     }
 
     /// @notice Revoke a license for an address
@@ -462,7 +467,7 @@ contract PermitPoolHook is BaseHook {
         
         // Try to get the ENS node for event emission, but don't revert if it fails
         bytes32 node = bytes32(0);
-        try this.getENSNodeForAddress(user) returns (bytes32 _node) {
+        try this.getEnsNodeForAddress(user) returns (bytes32 _node) {
             node = _node;
         } catch {
             // If getting the node fails, just use zero
@@ -526,6 +531,7 @@ contract PermitPoolHook is BaseHook {
         while (start > 0) {
             // Find the next dot (or start of string)
             start--;
+            // forge-lint: disable-next-line(unsafe-typecast)
             if (start == 0 || nameBytes[start - 1] == bytes1('.')) {
                 // Extract label
                 bytes memory label = new bytes(end - start);
