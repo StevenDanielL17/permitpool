@@ -1,5 +1,5 @@
-# Foundry directories (at root only)
-/lib/
+# Foundry directories (at root only) - BE SPECIFIC!
+/lib/forge-std/
 /out/
 /cache/
 /broadcast/
@@ -41,8 +41,6 @@ deployment_output.log
 output_test.txt
 status.txt
 
-# Do NOT ignore these (important for build):
-# - admin-portal/lib/
-# - trader-app/lib/
-# - vercel.json
-# - tsconfig.json files
+# IMPORTANT: Do NOT ignore app lib folders
+!admin-portal/lib/
+!trader-app/lib/
