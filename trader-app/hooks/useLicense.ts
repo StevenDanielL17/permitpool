@@ -55,7 +55,7 @@ export function useLicense() {
             args: [address, BigInt(node)]
           });
           
-          if (balance > 0n) {
+          if (Number(balance) > 0) {
             console.log(`✅ FOUND LICENSE: ${fullName}`);
             setHasLicense(true);
             setLicenseName(fullName);

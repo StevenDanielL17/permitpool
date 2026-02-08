@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { TOKENS, CONTRACTS } from '@/lib/contracts/addresses';
 import { HOOK_ABI } from '@/lib/contracts/abis';
 import { toast } from 'sonner';
+import { useUserTrades } from '@/hooks/useUserTrades';
 
 interface SwapInterfaceProps {
   licenseNode: `0x${string}`;
@@ -21,6 +22,7 @@ export function SwapInterface({ licenseNode }: SwapInterfaceProps) {
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
+  const { executeTrade } = useUserTrades();
 
   const [fromAmount, setFromAmount] = useState('');
   const [toAmount, setToAmount] = useState('');
@@ -109,7 +111,23 @@ export function SwapInterface({ licenseNode }: SwapInterfaceProps) {
       // Simulate network delay for "Perfect" UX
       console.log('⚡ Executing compliant swap for licensed user:', address);
       
+      // Calculate estimated output (simple 1:2400 ratio for demo)
+      const estimatedOutput = fromToken === 'USDC' 
+        ? (parseFloat(fromAmount) / 2400).toFixed(4)
+        : (parseFloat(fromAmount) * 2400).toFixed(2);
+      
+      setToAmount(estimatedOutput);
+      
       await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Save trade to user's history
+      executeTrade({
+        asset: `${fromToken}/${toToken}`,
+        type: fromToken === 'USDC' ? 'BUY' : 'SELL',
+        amount: fromAmount,
+        price: fromToken === 'USDC' ? '2400.00' : '0.000417',
+        pnl: '0.00'
+      });
 
       toast.success('Swap Submitted! Routing through PermitPoolHook...', {
         duration: 2000,
@@ -122,7 +140,7 @@ export function SwapInterface({ licenseNode }: SwapInterfaceProps) {
       setIsOptimisticProcessing(false);
 
       setTimeout(() => {
-           toast.success(`Transaction Confirmed: ${fromAmount} ${fromToken} → ${toAmount} ${toToken}`, {
+           toast.success(`Transaction Confirmed: ${fromAmount} ${fromToken} → ${estimatedOutput} ${toToken}`, {
                description: 'Verified by PermitPoolHook',
                duration: 3000,
            });
@@ -203,7 +221,19 @@ export function SwapInterface({ licenseNode }: SwapInterfaceProps) {
             type="number"
             placeholder="0.0"
             value={fromAmount}
-            onChange={(e) => setFromAmount(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setFromAmount(value);
+              // Auto-calculate estimated output
+              if (value && !isNaN(parseFloat(value))) {
+                const estimated = fromToken === 'USDC' 
+                  ? (parseFloat(value) / 2400).toFixed(4)
+                  : (parseFloat(value) * 2400).toFixed(2);
+                setToAmount(estimated);
+              } else {
+                setToAmount('');
+              }
+            }}
             className="flex-1 font-mono text-lg bg-white"
             disabled={buttonDisabled && !isWrongNetwork && !showLicenseWarning} // Allow editing if just amounts missing
           />

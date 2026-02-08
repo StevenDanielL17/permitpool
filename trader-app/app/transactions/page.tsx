@@ -1,101 +1,33 @@
 'use client';
 
 import { useState } from 'react';
+import { useAccount } from 'wagmi';
+import { useUserTrades } from '@/hooks/useUserTrades';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Download, ExternalLink, CheckCircle, XCircle, Clock } from 'lucide-react';
-
-type TxStatus = 'success' | 'failed' | 'pending';
-type TxType = 'swap' | 'approve' | 'transfer';
-
-interface Transaction {
-  id: string;
-  date: string;
-  time: string;
-  type: TxType;
-  from: string;
-  to: string;
-  amount: string;
-  price: string;
-  fee: string;
-  status: TxStatus;
-  txHash: string;
-}
+import { Search, Download, ExternalLink, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 export default function TransactionsPage() {
+  const { isConnected } = useAccount();
+  const { trades, loading } = useUserTrades();
   const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | TxType>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | TxStatus>('all');
 
-  // Mock data - in production, fetch from blockchain/indexer
-  const transactions: Transaction[] = [
-    {
-      id: '1',
-      date: '2026-02-05',
-      time: '14:30:22',
-      type: 'swap',
-      from: 'USDC',
-      to: 'WETH',
-      amount: '5,200',
-      price: '2,395.50',
-      fee: '12.50',
-      status: 'success',
-      txHash: '0xabcd1234...5678',
-    },
-    {
-      id: '2',
-      date: '2026-02-05',
-      time: '09:15:10',
-      type: 'swap',
-      from: 'WETH',
-      to: 'USDC',
-      amount: '1.5',
-      price: '2,390.00',
-      fee: '8.75',
-      status: 'success',
-      txHash: '0x1234abcd...9012',
-    },
-    {
-      id: '3',
-      date: '2026-02-04',
-      time: '16:45:33',
-      type: 'approve',
-      from: 'USDC',
-      to: '—',
-      amount: '∞',
-      price: '—',
-      fee: '3.20',
-      status: 'success',
-      txHash: '0x5678efgh...3456',
-    },
-    {
-      id: '4',
-      date: '2026-02-04',
-      time: '11:20:15',
-      type: 'swap',
-      from: 'USDC',
-      to: 'WETH',
-      amount: '8,500',
-      price: '2,385.00',
-      fee: '18.30',
-      status: 'success',
-      txHash: '0x9012ijkl...7890',
-    },
-    {
-      id: '5',
-      date: '2026-02-03',
-      time: '13:55:40',
-      type: 'swap',
-      from: 'WETH',
-      to: 'USDC',
-      amount: '2.0',
-      price: '2,380.00',
-      fee: '10.50',
-      status: 'failed',
-      txHash: '0xmnop3456...qrst',
-    },
-  ];
+  // Convert trades to transaction format for display
+  const transactions = trades.map(trade => ({
+    id: trade.id,
+    date: new Date(trade.timestamp).toLocaleDateString('en-CA'),
+    time: new Date(trade.timestamp).toLocaleTimeString('en-US'),
+    type: 'swap' as const,
+    from: trade.type === 'BUY' ? 'USDC' : trade.asset.split('/')[0],
+    to: trade.type === 'BUY' ? trade.asset.split('/')[0] : 'USDC',
+    amount: trade.amount,
+    price: trade.price,
+    fee: '0.00', // Could be calculated
+    status: trade.status === 'OPEN' ? 'success' as const : 'success' as const,
+    txHash: `0x${trade.id.slice(0, 8)}...${trade.id.slice(-4)}`,
+  }));
 
   const filteredTransactions = transactions.filter((tx) => {
     const matchesSearch =
@@ -103,13 +35,10 @@ export default function TransactionsPage() {
       tx.to.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tx.txHash.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesType = typeFilter === 'all' || tx.type === typeFilter;
-    const matchesStatus = statusFilter === 'all' || tx.status === statusFilter;
-
-    return matchesSearch && matchesType && matchesStatus;
+    return matchesSearch;
   });
 
-  const getStatusBadge = (status: TxStatus) => {
+  const getStatusBadge = (status: 'success' | 'failed' | 'pending') => {
     switch (status) {
       case 'success':
         return (
@@ -135,7 +64,7 @@ export default function TransactionsPage() {
     }
   };
 
-  const getTypeBadge = (type: TxType) => {
+  const getTypeBadge = (type: 'swap' | 'approve' | 'transfer') => {
     const colors = {
       swap: 'text-primary',
       approve: 'text-purple-500',
@@ -144,38 +73,31 @@ export default function TransactionsPage() {
     return <span className={`text-xs font-semibold uppercase ${colors[type]}`}>{type}</span>;
   };
 
-  return (
-    <div className="container mx-auto p-8 animate-fade-in">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-5xl font-bold mb-3">Transaction History</h1>
-        <p className="text-gray-400">View all your trading activity</p>
+  if (!isConnected) {
+    return (
+      <div className="container mx-auto p-8 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center glass rounded-xl p-12 border-dashed-sui max-w-lg">
+          <AlertCircle className="h-16 w-16 text-primary mx-auto mb-6" />
+          <h2 className="text-3xl font-bold mb-4">Connect Your Wallet</h2>
+          <p className="text-gray-400 mb-8">
+            Connect your wallet to view your transaction history
+          </p>
+          <ConnectButton />
+        </div>
       </div>
+    );
+  }
 
-      {/* Filters & Search */}
-      <Card className="glass border-dashed-sui mb-6">
-        <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-              <Input
-                placeholder="Search by token or tx hash..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-white/5 border-white/10"
-              />
-            </div>
+  if (loading) {
+    return (
+      <div className="container mx-auto p-8 text-center">
+        <h1 className="text-4xl font-bold mb-4">Loading...</h1>
+      </div>
+    );
+  }
 
-            {/* Type Filter */}
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
-              className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white hover:bg-white/10 transition-smooth cursor-pointer"
-            >
-              <option value="all">All Types</option>
-              <option value="swap">Swap</option>
-              <option value="approve">Approve</option>
+      <div classSpacer for future filters */}
+            <div className="flex-1"></divn value="approve">Approve</option>
               <option value="transfer">Transfer</option>
             </select>
 
@@ -249,7 +171,17 @@ export default function TransactionsPage() {
                   <tr
                     key={tx.id}
                     className="border-b border-white/5 hover:bg-white/5 transition-smooth"
-                  >
+                  >length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center">
+                      <div className="text-gray-500">
+                        <p className="text-lg font-semibold mb-2">No transactions yet</p>
+                        <p className="text-sm">Your trades will appear here once you start trading</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTransactions.
                     <td className="py-4 px-4">
                       <div>
                         <p className="text-sm font-medium">{tx.date}</p>
@@ -278,7 +210,8 @@ export default function TransactionsPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-1 text-primary hover:underline font-mono text-sm"
-                      >
+                  
+                )    >
                         {tx.txHash}
                         <ExternalLink className="h-3 w-3" />
                       </a>
