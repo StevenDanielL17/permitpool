@@ -54,8 +54,14 @@ contract PaymentManager {
     /// @notice Mapping to track last payment timestamp
     mapping(bytes32 => uint256) public lastPayment;
     
+    /// @notice Mapping to track when licenses were first issued (for grace period)
+    mapping(bytes32 => uint256) public licenseIssuedAt;
+    
     /// @notice Payment period (30 days)
     uint256 public constant PAYMENT_PERIOD = 30 days;
+    
+    /// @notice Grace period for new licenses (30 days)
+    uint256 public constant GRACE_PERIOD = 30 days;
     
     /// @notice Mapping to track if a license requires payment
     /// @dev licenseNode => requiresPayment
@@ -69,6 +75,7 @@ contract PaymentManager {
     event PaymentSessionUnlinked(bytes32 indexed licenseNode);
     event PaymentRequirementChanged(bytes32 indexed licenseNode, bool required);
     event AdminUpdated(address indexed oldAdmin, address indexed newAdmin);
+    event LicenseRegistered(bytes32 indexed licenseNode, uint256 issuedAt);
     
     // ============================================
     // ERRORS
@@ -127,6 +134,19 @@ contract PaymentManager {
         delete licensePayments[licenseNode];
         emit PaymentSessionUnlinked(licenseNode);
     }
+    
+    /// @notice Registers a newly issued license with grace period
+    /// @param licenseNode The ENS node of the new license
+    /// @dev Call this when issuing a license to grant 30-day grace period
+    function registerNewLicense(bytes32 licenseNode) external onlyAdmin {
+        if (licenseNode == bytes32(0)) revert InvalidLicenseNode();
+        
+        // Only register if not already registered (prevent resetting grace period)
+        if (licenseIssuedAt[licenseNode] == 0) {
+            licenseIssuedAt[licenseNode] = block.timestamp;
+            emit LicenseRegistered(licenseNode, block.timestamp);
+        }
+    }
 
     /// @notice Sets whether payment is required for a license
     /// @param licenseNode The ENS node of the license
@@ -140,7 +160,16 @@ contract PaymentManager {
     }
     
     /// @notice Checks if payment is active (Yellow session active AND not overdue)
+    /// @dev New licenses get a 30-day grace period before payment is required
     function isPaymentCurrent(bytes32 licenseNode) external view returns (bool) {
+        uint256 issuedAt = licenseIssuedAt[licenseNode];
+        
+        // If license was registered within grace period, payment is current
+        if (issuedAt > 0 && block.timestamp < issuedAt + GRACE_PERIOD) {
+            return true; // Grace period - no payment required yet!
+        }
+        
+        // After grace period, check for active payment session
         bytes32 sessionId = licensePayments[licenseNode];
         if (sessionId == bytes32(0)) return false;
         
@@ -149,10 +178,7 @@ contract PaymentManager {
             return false;
         }
         
-        // Check if payment is within period (simplified logic)
-        // In real Yellow, `isSessionActive` handles validity, but requirement asked for:
-        // "return block.timestamp < lastPayment[license] + PAYMENT_PERIOD;"
-        // We combine both.
+        // Check if payment is within period
         return block.timestamp < lastPayment[licenseNode] + PAYMENT_PERIOD;
     }
     

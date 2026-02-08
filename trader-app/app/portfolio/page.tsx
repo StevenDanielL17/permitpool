@@ -1,56 +1,101 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useAccount } from 'wagmi';
+import { useUserTrades } from '@/hooks/useUserTrades';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, DollarSign, PieChart } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, AlertCircle } from 'lucide-react';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { EmptyStateGuide } from '@/components/dashboard/EmptyStateGuide';
 
 type TimeRange = '7d' | '30d' | '90d';
 
 export default function PortfolioPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>('30d');
+  const { isConnected } = useAccount();
+  const { trades, stats, loading } = useUserTrades();
 
-  // Mock data - in production, fetch from blockchain/indexer
-  const summary = {
-    totalValue: 125430.50,
-    change24h: 2340.25,
-    change24hPercent: 1.9,
-    allTimePnL: 15680.75,
-    allTimePnLPercent: 14.3,
-  };
+  // Calculate real portfolio data from trades
+  const portfolioData = useMemo(() => {
+    const totalVolume = parseFloat(stats.totalVolume);
+    const totalPnL = parseFloat(stats.totalPnL);
+    const pnlPercent = totalVolume > 0 ? ((totalPnL / totalVolume) * 100).toFixed(2) : '0.00';
 
-  const holdings = [
-    {
-      token: 'USDC',
-      balance: '45,230.50',
-      value: 45230.50,
-      change24h: 0,
-      change24hPercent: 0,
-      allocation: 36,
-    },
-    {
-      token: 'WETH',
-      balance: '28.5',
-      value: 68200.00,
-      change24h: 1890.50,
-      change24hPercent: 2.85,
-      allocation: 54,
-    },
-    {
-      token: 'USDT',
-      balance: '12,000.00',
-      value: 12000.00,
-      change24h: 0,
-      change24hPercent: 0,
-      allocation: 10,
-    },
-  ];
+    // Group trades by asset to calculate holdings
+    const assetHoldings = trades
+      .filter(t => t.status === 'OPEN')
+      .reduce((acc, trade) => {
+        const asset = trade.asset.split('/')[0]; // Get base asset from pair like "ETH/USDC"
+        if (!acc[asset]) {
+          acc[asset] = {
+            token: asset,
+            balance: 0,
+            value: 0,
+            trades: 0,
+          };
+        }
+        
+        const amount = parseFloat(trade.amount);
+        const price = parseFloat(trade.price);
+        
+        if (trade.type === 'BUY') {
+          acc[asset].balance += amount;
+          acc[asset].value += amount * price;
+        } else {
+          acc[asset].balance -= amount;
+          acc[asset].value -= amount * price;
+        }
+        acc[asset].trades += 1;
+        
+        return acc;
+      }, {} as Record<string, { token: string; balance: number; value: number; trades: number; }>);
 
-  // Mock chart data points
-  const chartData = {
-    '7d': [120000, 121500, 119800, 122300, 123100, 124500, 125430],
-    '30d': [110000, 112000, 115000, 113500, 118000, 120000, 122000, 123500, 125430],
-    '90d': [95000, 98000, 102000, 105000, 108000, 112000, 115000, 120000, 125430],
-  };
+    const holdings = Object.values(assetHoldings).filter(h => h.balance > 0);
+    const totalValue = holdings.reduce((sum, h) => sum + h.value, 0);
+
+    return {
+      totalValue,
+      totalVolume,
+      totalPnL,
+      pnlPercent: parseFloat(pnlPercent),
+      holdings: holdings.map(h => ({
+        ...h,
+        allocation: totalValue > 0 ? ((h.value / totalValue) * 100).toFixed(1) : '0',
+      })),
+    };
+  }, [trades, stats]);
+
+  if (!isConnected) {
+    return (
+      <div className="container mx-auto p-8 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center glass rounded-xl p-12 border-dashed-sui max-w-lg">
+          <AlertCircle className="h-16 w-16 text-primary mx-auto mb-6" />
+          <h2 className="text-3xl font-bold mb-4">Connect Your Wallet</h2>
+          <p className="text-gray-400 mb-8">
+            Connect your wallet to view your portfolio and trading performance
+          </p>
+          <ConnectButton />
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-8 text-center">
+        <h1 className="text-4xl font-bold mb-4">Loading...</h1>
+      </div>
+    );
+  }
+
+  if (trades.length === 0) {
+    return (
+      <div className="container mx-auto p-8">
+        <h1 className="text-5xl font-bold mb-8 gradient-text">Portfolio</h1>
+        <EmptyStateGuide />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-8 animate-fade-in">
@@ -70,29 +115,23 @@ export default function PortfolioPage() {
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold mono-number mb-2">
-              ${summary.totalValue.toLocaleString()}
+              ${portfolioData.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-sm text-gray-400">Across all assets</p>
+            <p className="text-sm text-gray-400">Across {portfolioData.holdings.length} assets</p>
           </CardContent>
         </Card>
 
-        {/* 24h Change */}
+        {/* Total Volume */}
         <Card className="glass border-dashed-sui hover-lift transform-gpu">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400">24h Change</CardTitle>
-            {summary.change24hPercent > 0 ? (
-              <TrendingUp className="h-5 w-5 text-green-500" />
-            ) : (
-              <TrendingDown className="h-5 w-5 text-red-500" />
-            )}
+            <CardTitle className="text-sm font-medium text-gray-400">Total Volume</CardTitle>
+            <DollarSign className="h-5 w-5 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className={`text-4xl font-bold mono-number mb-2 ${summary.change24hPercent > 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {summary.change24hPercent > 0 ? '+' : ''}${summary.change24h.toLocaleString()}
+            <div className="text-4xl font-bold mono-number mb-2 text-blue-500">
+              ${portfolioData.totalVolume.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <p className="text-sm text-gray-400">
-              {summary.change24hPercent > 0 ? '+' : ''}{summary.change24hPercent}%
-            </p>
+            <p className="text-sm text-gray-400">{stats.totalTrades} trades</p>
           </CardContent>
         </Card>
 
@@ -100,64 +139,47 @@ export default function PortfolioPage() {
         <Card className="glass border-dashed-sui hover-lift transform-gpu">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-400">All-Time P&L</CardTitle>
-            <TrendingUp className="h-5 w-5 text-green-500" />
+            {portfolioData.totalPnL >= 0 ? (
+              <TrendingUp className="h-5 w-5 text-green-500" />
+            ) : (
+              <TrendingDown className="h-5 w-5 text-red-500" />
+            )}
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold mono-number mb-2 text-green-500">
-              +${summary.allTimePnL.toLocaleString()}
+            <div className={`text-4xl font-bold mono-number mb-2 ${portfolioData.totalPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {portfolioData.totalPnL >= 0 ? '+' : ''}${portfolioData.totalPnL.toFixed(2)}
             </div>
-            <p className="text-sm text-gray-400">+{summary.allTimePnLPercent}%</p>
+            <p className="text-sm text-gray-400">
+              {portfolioData.pnlPercent >= 0 ? '+' : ''}{portfolioData.pnlPercent}%
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Portfolio Value Chart */}
+      {/* Active Positions */}
       <Card className="glass border-dashed-sui mb-8">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-xl">Portfolio Value Over Time</CardTitle>
-              <p className="text-sm text-gray-400 mt-1">Track your portfolio performance</p>
-            </div>
-            <div className="flex gap-2">
-              {(['7d', '30d', '90d'] as TimeRange[]).map((range) => (
-                <button
-                  key={range}
-                  onClick={() => setTimeRange(range)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-smooth ${
-                    timeRange === range
-                      ? 'bg-primary text-black'
-                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                  }`}
-                >
-                  {range}
-                </button>
-              ))}
-            </div>
-          </div>
+          <CardTitle className="text-xl">Active Positions</CardTitle>
+          <p className="text-sm text-gray-400 mt-1">Your currently open trading positions</p>
         </CardHeader>
         <CardContent>
-          {/* Simple ASCII-style chart visualization */}
-          <div className="h-64 flex items-end gap-2 p-4">
-            {chartData[timeRange].map((value, index) => {
-              const maxValue = Math.max(...chartData[timeRange]);
-              const height = (value / maxValue) * 100;
-              return (
-                <div key={index} className="flex-1 flex flex-col items-center gap-2">
-                  <div className="text-xs text-gray-500 mono-number">
-                    ${(value / 1000).toFixed(0)}K
-                  </div>
-                  <div
-                    className="w-full bg-gradient-to-t from-primary/50 to-primary rounded-t-lg transition-all duration-500 hover-lift"
-                    style={{ height: `${height}%` }}
-                  />
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex justify-between text-xs text-gray-500 mt-4 px-4">
-            <span>Start</span>
-            <span>Now</span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="glass rounded-lg p-4 border border-white/10">
+              <p className="text-sm text-gray-400 mb-1">Open Trades</p>
+              <p className="text-3xl font-bold text-primary">{stats.activePositions}</p>
+            </div>
+            <div className="glass rounded-lg p-4 border border-white/10">
+              <p className="text-sm text-gray-400 mb-1">Closed Trades</p>
+              <p className="text-3xl font-bold text-gray-300">{stats.closedPositions}</p>
+            </div>
+            <div className="glass rounded-lg p-4 border border-white/10">
+              <p className="text-sm text-gray-400 mb-1">Total Trades</p>
+              <p className="text-3xl font-bold text-gray-300">{stats.totalTrades}</p>
+            </div>
+            <div className="glass rounded-lg p-4 border border-white/10">
+              <p className="text-sm text-gray-400 mb-1">Assets</p>
+              <p className="text-3xl font-bold text-gray-300">{portfolioData.holdings.length}</p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -166,93 +188,86 @@ export default function PortfolioPage() {
       <Card className="glass border-dashed-sui">
         <CardHeader>
           <CardTitle className="text-xl">Holdings</CardTitle>
-          <p className="text-sm text-gray-400 mt-1">Your current token balances</p>
+          <p className="text-sm text-gray-400 mt-1">Your current token balances from active positions</p>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/10">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-400 uppercase tracking-wide">
-                    Token
-                  </th>
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400 uppercase tracking-wide">
-                    Balance
-                  </th>
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400 uppercase tracking-wide">
-                    Value
-                  </th>
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400 uppercase tracking-wide">
-                    24h Change
-                  </th>
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400 uppercase tracking-wide">
-                    Allocation
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {holdings.map((holding) => (
-                  <tr
-                    key={holding.token}
-                    className="border-b border-white/5 hover:bg-white/5 transition-smooth"
-                  >
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                          <span className="text-sm font-bold text-primary">
-                            {holding.token.charAt(0)}
-                          </span>
-                        </div>
-                        <span className="font-bold">{holding.token}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <span className="font-mono text-sm">{holding.balance}</span>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <span className="font-mono font-medium">
-                        ${holding.value.toLocaleString()}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      {holding.change24hPercent === 0 ? (
-                        <span className="text-gray-500 text-sm">—</span>
-                      ) : (
-                        <div className="flex items-center justify-end gap-1">
-                          {holding.change24hPercent > 0 ? (
-                            <TrendingUp className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <TrendingDown className="h-4 w-4 text-red-500" />
-                          )}
-                          <span
-                            className={`font-mono text-sm ${
-                              holding.change24hPercent > 0 ? 'text-green-500' : 'text-red-500'
-                            }`}
-                          >
-                            {holding.change24hPercent > 0 ? '+' : ''}
-                            {holding.change24hPercent}%
-                          </span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary rounded-full"
-                            style={{ width: `${holding.allocation}%` }}
-                          />
-                        </div>
-                        <span className="font-mono text-sm text-gray-400 w-12">
-                          {holding.allocation}%
-                        </span>
-                      </div>
-                    </td>
+          {portfolioData.holdings.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <p className="text-lg font-semibold mb-2">No Holdings</p>
+              <p className="text-sm">Your holdings will appear here once you open positions</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-400 uppercase tracking-wide">
+                      Token
+                    </th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400 uppercase tracking-wide">
+                      Balance
+                    </th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400 uppercase tracking-wide">
+                      Value
+                    </th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400 uppercase tracking-wide">
+                      Trades
+                    </th>
+                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-400 uppercase tracking-wide">
+                      Allocation
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {portfolioData.holdings.map((holding) => (
+                    <tr
+                      key={holding.token}
+                      className="border-b border-white/5 hover:bg-white/5 transition-smooth"
+                    >
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                            <span className="text-sm font-bold text-primary">
+                              {holding.token.charAt(0)}
+                            </span>
+                          </div>
+                          <span className="font-bold">{holding.token}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <span className="font-mono text-sm">
+                          {holding.balance.toFixed(4)}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <span className="font-mono font-medium">
+                          ${holding.value.toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <span className="text-sm text-gray-400">
+                          {holding.trades}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <div className="w-24 h-2 bg-white/10 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-primary rounded-full"
+                              style={{ width: `${holding.allocation}%` }}
+                            />
+                          </div>
+                          <span className="font-mono text-sm text-gray-400 w-12">
+                            {holding.allocation}%
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

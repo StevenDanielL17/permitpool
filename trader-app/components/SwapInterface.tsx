@@ -234,7 +234,7 @@ export function SwapInterface({ licenseNode }: SwapInterfaceProps) {
                 setToAmount('');
               }
             }}
-            className="flex-1 font-mono text-lg bg-white"
+            className="flex-1 font-mono text-lg bg-white text-gray-900 placeholder:text-gray-400"
             disabled={buttonDisabled && !isWrongNetwork && !showLicenseWarning} // Allow editing if just amounts missing
           />
           <select
@@ -267,7 +267,7 @@ export function SwapInterface({ licenseNode }: SwapInterfaceProps) {
             placeholder="0.0"
             value={toAmount}
             onChange={(e) => setToAmount(e.target.value)}
-            className="flex-1 font-mono text-lg bg-gray-50"
+            className="flex-1 font-mono text-lg bg-gray-50 text-gray-900 placeholder:text-gray-400"
             readOnly
           />
           <select

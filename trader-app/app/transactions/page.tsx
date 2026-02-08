@@ -5,9 +5,9 @@ import { useAccount } from 'wagmi';
 import { useUserTrades } from '@/hooks/useUserTrades';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Search, Download, ExternalLink, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { Search, ExternalLink, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { EmptyStateGuide } from '@/components/dashboard/EmptyStateGuide';
 
 export default function TransactionsPage() {
   const { isConnected } = useAccount();
@@ -96,28 +96,34 @@ export default function TransactionsPage() {
     );
   }
 
-      <div classSpacer for future filters */}
-            <div className="flex-1"></divn value="approve">Approve</option>
-              <option value="transfer">Transfer</option>
-            </select>
+  if (transactions.length === 0) {
+    return (
+      <div className="container mx-auto p-8">
+        <h1 className="text-5xl font-bold mb-8 gradient-text">Transaction History</h1>
+        <EmptyStateGuide />
+      </div>
+    );
+  }
 
-            {/* Status Filter */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-              className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white hover:bg-white/10 transition-smooth cursor-pointer"
-            >
-              <option value="all">All Status</option>
-              <option value="success">Success</option>
-              <option value="failed">Failed</option>
-              <option value="pending">Pending</option>
-            </select>
+  return (
+    <div className="container mx-auto p-8">
+      <h1 className="text-5xl font-bold mb-8 gradient-text">Transaction History</h1>
 
-            {/* Export Button */}
-            <Button variant="outline" className="gap-2">
-              <Download className="h-4 w-4" />
-              Export CSV
-            </Button>
+      {/* Search and Filters */}
+      <Card className="glass border-dashed-sui mb-6">
+        <CardContent className="pt-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500" />
+              <Input
+                type="text"
+                placeholder="Search by token, tx hash..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-white/5 border-white/10"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -171,17 +177,7 @@ export default function TransactionsPage() {
                   <tr
                     key={tx.id}
                     className="border-b border-white/5 hover:bg-white/5 transition-smooth"
-                  >length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center">
-                      <div className="text-gray-500">
-                        <p className="text-lg font-semibold mb-2">No transactions yet</p>
-                        <p className="text-sm">Your trades will appear here once you start trading</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredTransactions.
+                  >
                     <td className="py-4 px-4">
                       <div>
                         <p className="text-sm font-medium">{tx.date}</p>
@@ -210,8 +206,7 @@ export default function TransactionsPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-1 text-primary hover:underline font-mono text-sm"
-                  
-                )    >
+                      >
                         {tx.txHash}
                         <ExternalLink className="h-3 w-3" />
                       </a>
