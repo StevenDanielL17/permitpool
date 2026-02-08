@@ -10,6 +10,16 @@ export const HOOK_ABI = [
     type: 'function',
   },
   {
+    inputs: [
+      { name: 'licensee', type: 'address' },
+      { name: 'node', type: 'bytes32' },
+    ],
+    name: 'registerLicenseNode',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
     inputs: [{ name: 'user', type: 'address' }],
     name: 'revokeLicense',
     outputs: [],
@@ -41,20 +51,19 @@ export const LICENSE_MANAGER_ABI = [
   {
     inputs: [
       { name: 'licensee', type: 'address' },
-      { name: 'label', type: 'string' },
+      { name: 'subdomain', type: 'string' },
       { name: 'arcCredentialHash', type: 'string' },
     ],
     name: 'issueLicense',
-    outputs: [{ name: 'node', type: 'bytes32' }],
+    outputs: [{ name: '', type: 'bytes32' }],
     stateMutability: 'nonpayable',
     type: 'function',
   },
   {
     inputs: [
       { name: 'licensee', type: 'address', indexed: true },
-      { name: 'label', type: 'string', indexed: false },
-      { name: 'node', type: 'bytes32', indexed: true },
-      { name: 'arcCredentialHash', type: 'string', indexed: false },
+      { name: 'subnode', type: 'bytes32', indexed: true },
+      { name: 'subdomain', type: 'string', indexed: false },
     ],
     name: 'LicenseIssued',
     type: 'event',

@@ -97,13 +97,11 @@ contract DeployScript is Script {
         require(address(hook) == hookAddress, "Hook address mismatch");
         console.log("PermitPoolHook deployed at:", address(hook));
 
-        // 4. Deploy LicenseManager with hook address
+        // 4. Deploy LicenseManager
         LicenseManager licenseManager = new LicenseManager(
             NAME_WRAPPER,
             RESOLVER,
-            address(hook),
-            parentNode,
-            deployer
+            parentNode
         );
         console.log("LicenseManager deployed at:", address(licenseManager));
 

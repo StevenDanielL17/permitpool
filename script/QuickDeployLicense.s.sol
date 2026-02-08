@@ -4,6 +4,10 @@ pragma solidity ^0.8.26;
 import {Script, console} from "forge-std/Script.sol";
 import {LicenseManager} from "../src/LicenseManager.sol";
 
+interface INameWrapper {
+    function setApprovalForAll(address operator, bool approved) external;
+}
+
 contract QuickDeployLicenseScript is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("OWNER_PRIVATE_KEY");
@@ -26,30 +30,22 @@ contract QuickDeployLicenseScript is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Deploy LicenseManager
+        // Deploy LicenseManager (simplified constructor)
         LicenseManager licenseManager = new LicenseManager(
             NAME_WRAPPER,
             RESOLVER,
-            HOOK,
-            parentNode,
-            deployer
+            parentNode
         );
 
         console.log("");
         console.log("=== DEPLOYMENT COMPLETE ===");
         console.log("LicenseManager:", address(licenseManager));
         
-        // Approve NameWrapper to manage ENS names
+        // CRITICAL: Approve the Manager to control the Parent Name in NameWrapper
+        // This allows the contract to call setSubnodeRecord on the parent.
         console.log("");
         console.log("Setting NameWrapper approval...");
-        (bool success,) = NAME_WRAPPER.call(
-            abi.encodeWithSignature(
-                "setApprovalForAll(address,bool)",
-                address(licenseManager),
-                true
-            )
-        );
-        require(success, "Failed to set approval");
+        INameWrapper(NAME_WRAPPER).setApprovalForAll(address(licenseManager), true);
         console.log("Approval set!");
 
         vm.stopBroadcast();

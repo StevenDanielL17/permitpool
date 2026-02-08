@@ -123,9 +123,7 @@ contract LicenseIntegrationTest is Test {
         licenseManager = new LicenseManager(
             address(nameWrapper),
             address(resolver),
-            address(hook),
-            parentNode,
-            admin
+            parentNode
         );
         
         // 3. Link them (The Fix)

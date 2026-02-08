@@ -1,11 +1,12 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { mainnet, sepolia, foundry } from 'wagmi/chains';
+import { sepolia } from 'wagmi/chains';
 import { http } from 'viem';
-import { createStorage } from 'wagmi';
 
 // Suppress WalletConnect session_request warnings in console
 if (typeof window !== 'undefined') {
   const originalWarn = console.warn;
+  const originalError = console.error;
+  
   console.warn = (...args: any[]) => {
     if (
       typeof args[0] === 'string' &&
@@ -15,34 +16,26 @@ if (typeof window !== 'undefined') {
     }
     originalWarn(...args);
   };
+  
+  console.error = (...args: any[]) => {
+    // Suppress WalletConnect proposal errors (harmless session cleanup)
+    if (
+      typeof args[0] === 'object' &&
+      typeof args[1] === 'string' &&
+      (args[1].includes('No matching key') || args[1].includes('proposal:'))
+    ) {
+      return; // Suppress WalletConnect proposal cleanup errors
+    }
+    originalError(...args);
+  };
 }
 
-// Optimize Sepolia RPC for faster responses
-const sepoliaOptimized = {
-  ...sepolia,
-  rpcUrls: {
-    default: {
-      http: [
-        'https://sepolia.drpc.org',
-        'https://eth-sepolia-public.unifra.io',
-      ],
-    },
-  },
-};
-
 export const config = getDefaultConfig({
-  appName: 'PermitPool',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '02d8a49c5627c022e8f5bf13e32d5f37',
-  chains: [mainnet, sepoliaOptimized, foundry],
+  appName: 'PermitPool Admin',
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '3a8170812b534d0ff9d794f19a901d64',
+  chains: [sepolia],
   ssr: true,
-  // Enable persistent wallet connections
-  storage: createStorage({
-    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-    key: 'permitpool.wallet', // Unique key for this app
-  }),
   transports: {
-    [mainnet.id]: http(),
-    [sepoliaOptimized.id]: http(),
-    [foundry.id]: http(),
+    [sepolia.id]: http('https://eth-sepolia.g.alchemy.com/v2/pwne_tuyO5AK0JMS4_bvO'),
   },
 });

@@ -20,13 +20,22 @@ export default function TradingPage() {
   const [licenseNode, setLicenseNode] = useState<`0x${string}` | null>(null);
   const [lastRefresh, setLastRefresh] = useState(Date.now());
 
+  // Debug: Log contract addresses on mount
+  useEffect(() => {
+    console.log('📋 Contract Configuration:', {
+      HOOK: CONTRACTS.HOOK,
+      LICENSE_MANAGER: CONTRACTS.LICENSE_MANAGER,
+    });
+  }, []);
+
   // Check if user has a license (aggressive refetch settings for real-time updates)
-  const { data: nodeData, isLoading, refetch } = useReadContract({
+  const { data: nodeData, isLoading, refetch, error, isError } = useReadContract({
     address: CONTRACTS.HOOK,
     abi: HOOK_ABI,
-    functionName: 'getENSNodeForAddress',
+    functionName: 'getEnsNodeForAddress',
     args: address ? [address] : undefined,
     query: {
+      enabled: !!address && !!CONTRACTS.HOOK,
       staleTime: 2000, // 2s - very fresh for instant updates
       gcTime: 15000, // 15s cache window
       retry: 3,
@@ -35,6 +44,13 @@ export default function TradingPage() {
       refetchIntervalInBackground: false,
     },
   });
+
+  // Log any errors
+  useEffect(() => {
+    if (isError) {
+      console.error('❌ Error fetching license:', error);
+    }
+  }, [isError, error]);
 
   // Force refetch when address changes
   useEffect(() => {
@@ -49,12 +65,21 @@ export default function TradingPage() {
 
   // Watch for license data and sync state
   useEffect(() => {
+    console.log('🔍 License Check Debug:', {
+      nodeData,
+      address,
+      isLoading,
+      hookAddress: CONTRACTS.HOOK,
+    });
+    
     if (nodeData && nodeData !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
+      console.log('✅ Valid license node found:', nodeData);
       setLicenseNode(nodeData as `0x${string}`);
     } else {
+      console.log('❌ No license node found or zero value');
       setLicenseNode(null);
     }
-  }, [nodeData]);
+  }, [nodeData, address, isLoading]);
 
   // Manual refresh handler - for user to manually trigger instant check
   const handleManualRefresh = useCallback(async () => {

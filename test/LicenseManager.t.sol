@@ -94,9 +94,7 @@ contract LicenseManagerTest is Test {
         manager = new LicenseManager(
             address(nameWrapper),
             address(resolver),
-            address(hook),
-            parentNode,
-            admin
+            parentNode
         );
     }
     
@@ -121,32 +119,14 @@ contract LicenseManagerTest is Test {
     
     function test_IssueLicense_RevertsNonAdmin() public {
         vm.prank(user);
-        vm.expectRevert(LicenseManager.Unauthorized.selector);
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", user));
         manager.issueLicense(user, "bob", "cred");
     }
     
-    function test_IssueLicense_RevertsInvalidAddress() public {
-        vm.prank(admin);
-        vm.expectRevert(LicenseManager.InvalidAddress.selector);
-        manager.issueLicense(address(0), "bob", "cred");
-    }
-    
-    function test_IssueLicense_RevertsInvalidLabel() public {
-        vm.prank(admin);
-        vm.expectRevert(LicenseManager.InvalidLabel.selector);
-        manager.issueLicense(user, "", "cred");
-    }
-    
-    function test_IssueLicense_RevertsInvalidCredentialHash() public {
-        vm.prank(admin);
-        vm.expectRevert(LicenseManager.InvalidCredentialHash.selector);
-        manager.issueLicense(user, "bob", "");
-    }
-    
-    function test_UpdateAdmin() public {
+    function test_TransferOwnership() public {
         address newAdmin = address(0xBEEF);
         vm.prank(admin);
-        manager.updateAdmin(newAdmin);
+        manager.transferOwnership(newAdmin);
         
         // Verify new admin can issue
         vm.prank(newAdmin);
@@ -154,7 +134,7 @@ contract LicenseManagerTest is Test {
         
         // Verify old admin cannot
         vm.prank(admin);
-        vm.expectRevert(LicenseManager.Unauthorized.selector);
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", admin));
         manager.issueLicense(user, "dave", "cred");
     }
 }

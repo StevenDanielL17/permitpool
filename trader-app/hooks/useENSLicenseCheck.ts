@@ -53,8 +53,8 @@ export function useENSLicenseCheck() {
           return;
         }
 
-        // Check if ENS name is a subdomain of myhedgefund-v2.eth
-        const isLicenseSubdomain = ensName.endsWith('.myhedgefund-v2.eth');
+        // Check if ENS name is a subdomain of hedgefund-v3.eth
+        const isLicenseSubdomain = ensName.endsWith('.hedgefund-v3.eth');
 
         if (isLicenseSubdomain) {
           setResult({

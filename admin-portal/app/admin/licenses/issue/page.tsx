@@ -5,15 +5,18 @@ import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { ArcKYCModal } from '@/components/ArcKYCModal';
 import { toast } from 'sonner';
 import { CONTRACTS } from '@/lib/contracts/addresses';
-import { LICENSE_MANAGER_ABI } from '@/lib/contracts/abis';
+import { LICENSE_MANAGER_ABI, HOOK_ABI } from '@/lib/contracts/abis';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { namehash } from 'viem';
+import { ENS } from '@/lib/contracts/addresses';
 
 export default function IssueLicense() {
   const [traderAddress, setTraderAddress] = useState('');
   const [subdomain, setSubdomain] = useState('');
   const [showKYC, setShowKYC] = useState(false);
   const [arcCredential, setArcCredential] = useState('');
+  const [licenseHash, setLicenseHash] = useState<`0x${string}` | null>(null);
 
   const { writeContract, data: hash } = useWriteContract();
   const { isSuccess } = useWaitForTransactionReceipt({ hash });
@@ -42,7 +45,12 @@ export default function IssueLicense() {
     }
 
     try {
-      // PERMITPOOL ISSUES LICENSE (on-chain, permanent)
+      // Calculate the node hash for registration
+      const fullDomain = `${subdomain}.hedgefund-v3.eth`;
+      const nodeHash = namehash(fullDomain);
+      setLicenseHash(nodeHash);
+
+      // STEP 1: Issue license via LicenseManager
       writeContract({
         address: CONTRACTS.LICENSE_MANAGER,
         abi: LICENSE_MANAGER_ABI,
@@ -61,9 +69,34 @@ export default function IssueLicense() {
     }
   };
 
-  if (isSuccess) {
+  // Step 4: After license issued, register with HOOK
+  const registerWithHook = async () => {
+    if (!licenseHash || !traderAddress) return;
+
+    try {
+      toast.info('Registering license with trading system...');
+      
+      writeContract({
+        address: CONTRACTS.HOOK,
+        abi: HOOK_ABI,
+        functionName: 'registerLicenseNode',
+        args: [
+          traderAddress as `0x${string}`,
+          licenseHash
+        ]
+      });
+
+      toast.success('License registration submitted!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Registration failed - license issued but not activated for trading');
+    }
+  };
+
+  if (isSuccess && licenseHash && !hash) {
     toast.success('✅ LICENSE ISSUED ON-CHAIN!');
-    // No auto-reset here to let admin see confirmation, but can clear manually or via useEffect
+    // Auto-trigger HOOK registration
+    registerWithHook();
   }
 
   return (
@@ -96,10 +129,10 @@ export default function IssueLicense() {
               onChange={(e) => setSubdomain(e.target.value)}
               placeholder="alice"
             />
-            <span className="text-gray-500">.myhedgefund.eth</span>
+            <span className="text-gray-500">.hedgefund-v3.eth</span>
           </div>
           <p className="text-sm text-gray-500 mt-2">
-            Will create: <span className="text-blue-400">{subdomain || 'alice'}.myhedgefund.eth</span>
+            Will create: <span className="text-blue-400">{subdomain || 'alice'}.hedgefund-v3.eth</span>
           </p>
         </div>
 

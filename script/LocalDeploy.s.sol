@@ -96,9 +96,7 @@ contract LocalDeployScript is Script {
         LicenseManager licenseManager = new LicenseManager(
             NAME_WRAPPER,
             RESOLVER,
-            address(hook),
-            parentNode,
-            deployer
+            parentNode
         );
         console.log("  OK LicenseManager:", address(licenseManager));
 

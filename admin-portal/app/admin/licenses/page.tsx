@@ -4,12 +4,13 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Filter, Download, Plus, Eye, XCircle, CheckCircle } from 'lucide-react';
+import { Search, Filter, Download, Plus, Eye, XCircle, CheckCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useLicenses } from '@/hooks/useLicenses';
 
 type LicenseStatus = 'active' | 'revoked' | 'expired';
 
-interface License {
+interface DisplayLicense {
   id: string;
   subdomain: string;
   traderName: string;
@@ -23,60 +24,21 @@ interface License {
 export default function LicensesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | LicenseStatus>('all');
+  
+  // Fetch real licenses from blockchain
+  const { licenses: blockchainLicenses, isLoading, error } = useLicenses();
 
-  // Mock data - in production, fetch from blockchain/database
-  const licenses: License[] = [
-    {
-      id: '1',
-      subdomain: 'trader1.fund.eth',
-      traderName: 'Alice Johnson',
-      walletAddress: '0x1234...5678',
-      status: 'active',
-      issueDate: '2026-01-15',
-      lastTradeDate: '2026-02-05',
-      paymentStatus: 'current',
-    },
-    {
-      id: '2',
-      subdomain: 'trader2.fund.eth',
-      traderName: 'Bob Smith',
-      walletAddress: '0xabcd...ef01',
-      status: 'active',
-      issueDate: '2026-01-20',
-      lastTradeDate: '2026-02-04',
-      paymentStatus: 'current',
-    },
-    {
-      id: '3',
-      subdomain: 'trader3.fund.eth',
-      traderName: 'Carol Davis',
-      walletAddress: '0x9876...5432',
-      status: 'revoked',
-      issueDate: '2026-01-10',
-      lastTradeDate: '2026-01-28',
-      paymentStatus: 'overdue',
-    },
-    {
-      id: '4',
-      subdomain: 'trader4.fund.eth',
-      traderName: 'David Wilson',
-      walletAddress: '0x5555...6666',
-      status: 'active',
-      issueDate: '2026-01-25',
-      lastTradeDate: '2026-02-05',
-      paymentStatus: 'current',
-    },
-    {
-      id: '5',
-      subdomain: 'trader5.fund.eth',
-      traderName: 'Eve Martinez',
-      walletAddress: '0x7777...8888',
-      status: 'active',
-      issueDate: '2026-02-01',
-      lastTradeDate: '2026-02-05',
-      paymentStatus: 'current',
-    },
-  ];
+  // Transform blockchain licenses to display format
+  const licenses: DisplayLicense[] = blockchainLicenses.map((license, index) => ({
+    id: license.node,
+    subdomain: `${license.subdomain}.hedgefund-v3.eth`,
+    traderName: license.subdomain.charAt(0).toUpperCase() + license.subdomain.slice(1), // Capitalize subdomain as name
+    walletAddress: `${license.owner.slice(0, 6)}...${license.owner.slice(-4)}`,
+    status: 'active' as LicenseStatus, // TODO: Check revocation status from contract
+    issueDate: new Date().toISOString().split('T')[0], // TODO: Fetch from block timestamp
+    lastTradeDate: 'N/A',
+    paymentStatus: 'current' as const,
+  }));
 
   const filteredLicenses = licenses.filter((license) => {
     const matchesSearch =
@@ -219,7 +181,32 @@ export default function LicensesPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredLicenses.map((license) => (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center">
+                      <div className="flex items-center justify-center gap-2 text-gray-400">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Loading licenses from blockchain...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : error ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center">
+                      <div className="text-red-500">
+                        <p className="font-semibold">Error loading licenses</p>
+                        <p className="text-sm mt-1">{error.message}</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredLicenses.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-gray-400">
+                      {licenses.length === 0 ? 'No licenses issued yet' : 'No licenses match your search'}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredLicenses.map((license) => (
                   <tr
                     key={license.id}
                     className="border-b border-white/5 hover:bg-white/5 transition-smooth"
@@ -258,7 +245,8 @@ export default function LicensesPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                ))
+                )}
               </tbody>
             </table>
           </div>

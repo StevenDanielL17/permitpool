@@ -5,7 +5,7 @@ import {Script, console} from "forge-std/Script.sol";
 import {LicenseManager} from "../src/LicenseManager.sol";
 
 // Ensure this matches your deployment!
-address constant LICENSE_MANAGER = 0xe8faf26e16068d2c6d77834b4441805c521a91b6;
+address constant LICENSE_MANAGER = 0x8a7B23126dD019ab706c3532cD54c90e4Fd861D3;
 
 contract IssueLicenseScript is Script {
     function run() external {

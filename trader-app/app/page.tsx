@@ -1,11 +1,9 @@
 'use client';
 
-import { useAccount, useReadContract } from 'wagmi';
+import { useAccount } from 'wagmi';
 import { useEffect, useState } from 'react';
-import { CONTRACTS } from '@/lib/contracts/addresses';
-import { LICENSE_MANAGER_ABI } from '@/lib/contracts/abis';
 import { ConnectButton } from '@/components/ConnectButton';
-import { useENSLicenseCheck } from '@/hooks/useENSLicenseCheck';
+import { useLicense } from '@/hooks/useLicense';
 import { Shield, CheckCircle2, AlertCircle, TrendingUp, Activity, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -13,22 +11,11 @@ import { Button } from '@/components/ui/button';
 export default function TraderDashboard() {
   const { address, isConnected } = useAccount();
   const [mounted, setMounted] = useState(false);
-  const { hasENS, ensName, isLicensed, message, isChecking } = useENSLicenseCheck();
+  const { hasLicense, licenseName, isLoading } = useLicense();
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // CHECK: Does this wallet have a license from PermitPool?
-  const { data: hasLicense, isLoading } = useReadContract({
-    address: CONTRACTS.LICENSE_MANAGER,
-    abi: LICENSE_MANAGER_ABI,
-    functionName: 'hasValidLicense',
-    args: address ? [address] : undefined,
-    query: {
-      enabled: isConnected && !!address,
-    }
-  });
 
   if (!mounted) return null;
 
@@ -94,7 +81,7 @@ export default function TraderDashboard() {
           <Shield className="w-5 h-5 text-green-500" />
           <div className="flex flex-col">
             <span className="font-semibold text-green-400">License Active</span>
-            {ensName && <span className="text-xs text-gray-400">{ensName}</span>}
+            {licenseName && <span className="text-xs text-gray-400">{licenseName}</span>}
           </div>
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
         </div>

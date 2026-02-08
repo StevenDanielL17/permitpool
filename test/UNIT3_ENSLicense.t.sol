@@ -45,13 +45,11 @@ contract UNIT3_ENSLicenseTest is Test {
         // Deploy payment manager
         paymentManager = new PaymentManager(address(yellowClearnode), owner);
         
-        // Deploy license manager (without hook for testing)
+        // Deploy license manager
         licenseManager = new LicenseManager(
             NAME_WRAPPER,
             RESOLVER,
-            address(1), // dummy hook
-            parentNode,
-            owner
+            parentNode
         );
     }
 
@@ -112,14 +110,14 @@ contract UNIT3_ENSLicenseTest is Test {
     function test_Unit3_LicenseManagerSetup() public {
         console.log("\n  Testing LicenseManager Setup...");
         
-        // Verify admin is set
-        assert(licenseManager.admin() == owner);
+        // Verify owner is set
+        assert(licenseManager.owner() == owner);
         
         // Verify parent node is set
-        assert(licenseManager.PARENT_NODE() == parentNode);
+        assert(licenseManager.parentNode() == parentNode);
         
         // Verify name wrapper is set correctly (compare addresses)
-        assert(address(licenseManager.NAME_WRAPPER()) == NAME_WRAPPER);
+        assert(address(licenseManager.nameWrapper()) == NAME_WRAPPER);
         
         console.log("  OK: License manager properly configured");
     }
