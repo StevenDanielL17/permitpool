@@ -37,6 +37,7 @@ yarn-error.log*
 
 # Large/temporary files
 *.log
+*.tar.gz
 deployment_output.log
 output_test.txt
 status.txt
